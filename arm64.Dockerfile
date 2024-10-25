@@ -27,4 +27,6 @@ COPY --from=build /circles-nethermind-plugin/Circles.Pathfinder.dll /nethermind/
 #COPY --from=build /circles-nethermind-plugin/runtimes/linux-arm64/native/google-ortools-native.so /nethermind/plugins
 #COPY --from=build /circles-nethermind-plugin/runtimes/linux-arm64/native/libortools.so.9 /nethermind/plugins
 COPY --from=build /circles-nethermind-plugin/Nethermind.Int256.dll /nethermind/plugins
+COPY --from=build /circles-nethermind-plugin/Google.OrTools.dll /nethermind/plugins
+COPY --from=build /circles-nethermind-plugin/Google.Protobuf.dll /nethermind/plugins
 COPY --from=build /circles-nethermind-plugin/Npgsql.dll /nethermind/plugins
