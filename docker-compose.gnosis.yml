@@ -43,6 +43,8 @@ services:
       - V2_ERC20_LIFT_ADDRESS=0x5F99a795dD2743C36D63511f0D4bc667e6d3cDB5
       - POSTGRES_CONNECTION_STRING=Server=postgres-gnosis;Port=5432;Database=postgres;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};
       - START_BLOCK=12000000
+    logging:
+      driver: "journald"
 
   postgres-gnosis:
     image: postgres:16
@@ -59,6 +61,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
     volumes:
       - ./.state/postgres-gnosis:/var/lib/postgresql/data
+    logging:
+      driver: "journald"
 
   consensus-gnosis:
     container_name: consensus-gnosis
@@ -90,6 +94,8 @@ services:
       --execution-endpoint=http://nethermind-gnosis:8551
       --execution-jwt=/jwt.hex
       --checkpoint-sync-url=https://checkpoint.gnosis.gateway.fm/
+    logging:
+      driver: "journald"
 
 networks:
   circles-gnosis:

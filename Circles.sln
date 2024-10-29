@@ -50,15 +50,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Circles.Index.CirclesV2.Sta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Circles.Index.Utils", "Circles.Index.Utils\Circles.Index.Utils.csproj", "{C68CD7EC-9F4D-481E-AC4E-E063794E9488}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "protobuf-types", "protobuf-types", "{52C38C3D-390F-4EB9-B466-958EEDABB8B2}"
-	ProjectSection(SolutionItems) = preProject
-		v1.proto = v1.proto
-		common.proto = common.proto
-		v2.proto = v2.proto
-		v2.nameRegistry.proto = v2.nameRegistry.proto
-		v2.standardTreasury.proto = v2.standardTreasury.proto
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Circles.Pathfinder", "Circles.Pathfinder\Circles.Pathfinder.csproj", "{756580B1-2D2A-4FFE-9711-046A10853003}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Circles.Pathfinder.Tests", "Circles.Pathfinder.Tests\Circles.Pathfinder.Tests.csproj", "{62AB2354-6098-4C31-8C85-CFE07E704F93}"
