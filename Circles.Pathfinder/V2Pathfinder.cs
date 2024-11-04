@@ -3,6 +3,7 @@ using Circles.Pathfinder.Data;
 using Circles.Pathfinder.DTOs;
 using Circles.Pathfinder.Edges;
 using Circles.Pathfinder.Graphs;
+using System.Diagnostics;
 
 namespace Circles.Pathfinder;
 
@@ -29,17 +30,33 @@ public class V2Pathfinder : IPathfinder
             throw new ArgumentException("TargetFlow must be a valid integer.");
         }
 
+        var totalStopwatch = Stopwatch.StartNew();
+        var stopwatch = new Stopwatch();
+
         // Load Trust and Balance Graphs
+        stopwatch.Start();
         var trustGraph = _graphFactory.V2TrustGraph(_loadGraph);
         var balanceGraph = _graphFactory.V2BalanceGraph(_loadGraph);
+        stopwatch.Stop();
+        var loadGraphsTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to load graphs: {loadGraphsTime.TotalMilliseconds} ms");
 
         // Create Capacity Graph
+        stopwatch.Restart();
         var capacityGraph = _graphFactory.CreateCapacityGraph(balanceGraph, trustGraph);
+        stopwatch.Stop();
+        var createCapacityGraphTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to create capacity graph: {createCapacityGraphTime.TotalMilliseconds} ms");
 
         // Create Flow Graph
+        stopwatch.Restart();
         var flowGraph = _graphFactory.CreateFlowGraph(capacityGraph);
+        stopwatch.Stop();
+        var createFlowGraphTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to create flow graph: {createFlowGraphTime.TotalMilliseconds} ms");
 
         // Validate Source and Sink
+        stopwatch.Restart();
         if (!trustGraph.Nodes.ContainsKey(request.Source))
         {
             throw new ArgumentException($"Source node '{request.Source}' does not exist in the graph.");
@@ -49,18 +66,34 @@ public class V2Pathfinder : IPathfinder
         {
             throw new ArgumentException($"Sink node '{request.Sink}' does not exist in the graph.");
         }
+        stopwatch.Stop();
+        var validateSourceSinkTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to validate source and sink: {validateSourceSinkTime.TotalMilliseconds} ms");
 
         // Compute Max Flow
+        stopwatch.Restart();
         var maxFlow = flowGraph.ComputeMaxFlowWithPaths(request.Source, request.Sink, targetFlow);
+        stopwatch.Stop();
+        var computeMaxFlowTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to compute max flow: {computeMaxFlowTime.TotalMilliseconds} ms");
 
         // Extract Paths with Flow
+        stopwatch.Restart();
         var pathsWithFlow =
             flowGraph.ExtractPathsWithFlow(request.Source, request.Sink, BigInteger.Parse("0"));
+        stopwatch.Stop();
+        var extractPathsTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to extract paths with flow: {extractPathsTime.TotalMilliseconds} ms");
 
         // Collapse balance nodes to get a collapsed graph
+        stopwatch.Restart();
         var collapsedGraph = CollapseBalanceNodes(pathsWithFlow);
+        stopwatch.Stop();
+        var collapseBalanceNodesTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to collapse balance nodes: {collapseBalanceNodesTime.TotalMilliseconds} ms");
 
         // Create transfer steps from the collapsed graph
+        stopwatch.Restart();
         var transferSteps = new List<TransferPathStep>();
 
         foreach (var edge in collapsedGraph.Edges)
@@ -80,9 +113,19 @@ public class V2Pathfinder : IPathfinder
                 Value = edge.Flow.ToString()
             });
         }
+        stopwatch.Stop();
+        var createTransferStepsTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to create transfer steps: {createTransferStepsTime.TotalMilliseconds} ms");
 
         // Prepare the response
+        stopwatch.Restart();
         var response = new MaxFlowResponse(maxFlow.ToString(), transferSteps);
+        stopwatch.Stop();
+        var prepareResponseTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken to prepare response: {prepareResponseTime.TotalMilliseconds} ms");
+
+        totalStopwatch.Stop();
+        Console.WriteLine($"Total time taken: {totalStopwatch.Elapsed.TotalMilliseconds} ms");
 
         return response;
     }

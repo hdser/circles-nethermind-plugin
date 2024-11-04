@@ -1,5 +1,6 @@
 using System.Numerics;
 using Circles.Pathfinder.Data;
+using System.Diagnostics;
 
 namespace Circles.Pathfinder.Graphs
 {
@@ -11,7 +12,16 @@ namespace Circles.Pathfinder.Graphs
         /// <returns>A trust graph containing all v2 trust edges.</returns>
         public TrustGraph V2TrustGraph(LoadGraph loadGraph)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             var trustEdges = loadGraph.LoadV2Trust().ToArray();
+
+            stopwatch.Stop();
+            var loadTrustEdgesTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to load V2Trust edges: {loadTrustEdgesTime.TotalMilliseconds} ms");
+
+            stopwatch.Restart();
+
             var graph = new TrustGraph();
             foreach (var trustEdge in trustEdges)
             {
@@ -28,6 +38,10 @@ namespace Circles.Pathfinder.Graphs
                 graph.AddTrustEdge(trustEdge.Truster, trustEdge.Trustee);
             }
 
+            stopwatch.Stop();
+            var buildTrustGraphTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to build TrustGraph: {buildTrustGraphTime.TotalMilliseconds} ms");
+
             return graph;
         }
 
@@ -37,7 +51,16 @@ namespace Circles.Pathfinder.Graphs
         /// <returns>A balance graph containing all v2 balances and holders.</returns>
         public BalanceGraph V2BalanceGraph(LoadGraph loadGraph)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             var balances = loadGraph.LoadV2Balances().ToArray();
+
+            stopwatch.Stop();
+            var loadBalancesTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to load V2Balances: {loadBalancesTime.TotalMilliseconds} ms");
+
+            stopwatch.Restart();
+
             var graph = new BalanceGraph();
             foreach (var balance in balances)
             {
@@ -48,6 +71,10 @@ namespace Circles.Pathfinder.Graphs
 
                 graph.AddBalance(balance.Account, balance.TokenAddress, BigInteger.Parse(balance.Balance));
             }
+
+            stopwatch.Stop();
+            var buildBalanceGraphTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to build BalanceGraph: {buildBalanceGraphTime.TotalMilliseconds} ms");
 
             return graph;
         }
@@ -66,6 +93,8 @@ namespace Circles.Pathfinder.Graphs
             // 3. Create more capacity edges based on the trust graph:
             //    - For each balance, check if there is a node that is willing to accept the balance (is trusting the token issuer)
             //    - If there is, create a capacity edge from the balance node to the accepting node
+            
+            var stopwatch = Stopwatch.StartNew();
 
             var capacityGraph = new CapacityGraph();
 
@@ -96,6 +125,12 @@ namespace Circles.Pathfinder.Graphs
                     capacityEdge.InitialCapacity
                 );
             }
+
+            stopwatch.Stop();
+            var initialCapacityGraphTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to initialize CapacityGraph: {initialCapacityGraphTime.TotalMilliseconds} ms");
+
+            stopwatch.Restart();
 
             // Step 3: Create more capacity edges based on the trust graph
             // Optimization: Precompute a trustee-to-trusters lookup dictionary
@@ -134,13 +169,23 @@ namespace Circles.Pathfinder.Graphs
                 }
             }
 
+            stopwatch.Stop();
+            var buildCapacityGraphTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to build CapacityGraph: {buildCapacityGraphTime.TotalMilliseconds} ms");
+
             return capacityGraph;
         }
 
         public FlowGraph CreateFlowGraph(CapacityGraph capacityGraph)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             var flowGraph = new FlowGraph();
             flowGraph.AddCapacity(capacityGraph);
+
+            stopwatch.Stop();
+            var buildFlowGraphTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to build FlowGraph: {buildFlowGraphTime.TotalMilliseconds} ms");
 
             return flowGraph;
         }

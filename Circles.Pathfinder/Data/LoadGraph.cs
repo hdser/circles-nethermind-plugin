@@ -1,4 +1,5 @@
 using Npgsql;
+using System.Diagnostics;
 
 namespace Circles.Pathfinder.Data
 {
@@ -8,16 +9,23 @@ namespace Circles.Pathfinder.Data
         public IEnumerable<(string Balance, string Account, string TokenAddress)> LoadV2Balances()
         {
             var balanceQuery = @"
-                select ""demurragedTotalBalance""::text, ""account"", ""tokenAddress""
-                from ""V_CrcV2_BalancesByAccountAndToken""
-                where ""demurragedTotalBalance"" > 0;
+                select ""totalBalance""::text, ""account"", ""tokenOwner""
+                from ""V_CrcV1_BalancesByAccountAndToken""
+                where ""totalBalance"" > 0;
             ";
 
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
 
             using var command = new NpgsqlCommand(balanceQuery, connection);
+
+            var stopwatch = Stopwatch.StartNew();
+
             using var reader = command.ExecuteReader();
+
+            stopwatch.Stop();
+            var executeReaderTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to execute LoadV2Balances query: {executeReaderTime.TotalMilliseconds} ms");
 
             while (reader.Read())
             {
@@ -32,15 +40,22 @@ namespace Circles.Pathfinder.Data
         public IEnumerable<(string Truster, string Trustee, int Limit)> LoadV2Trust()
         {
             var trustQuery = @"
-                select truster, trustee
-                from ""V_CrcV2_TrustRelations"";
+                select ""canSendTo"" as ""truster"", ""user"" as ""trustee""
+                from ""V_CrcV1_TrustRelations"";
             ";
 
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
 
             using var command = new NpgsqlCommand(trustQuery, connection);
+
+            var stopwatch = Stopwatch.StartNew();
+
             using var reader = command.ExecuteReader();
+
+            stopwatch.Stop();
+            var executeReaderTime = stopwatch.Elapsed;
+            Console.WriteLine($"Time taken to execute LoadV2Trust query: {executeReaderTime.TotalMilliseconds} ms");
 
             while (reader.Read())
             {

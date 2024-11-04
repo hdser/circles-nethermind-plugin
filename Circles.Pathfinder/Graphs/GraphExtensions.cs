@@ -1,5 +1,6 @@
 using System.Numerics;
 using Circles.Pathfinder.Edges;
+using System.Diagnostics;
 
 namespace Circles.Pathfinder.Graphs;
 
@@ -20,6 +21,8 @@ public static class GraphExtensions
         string sink,
         BigInteger targetFlow)
     {
+        var stopwatch = Stopwatch.StartNew();
+
         BigInteger maxFlow = 0;
 
         while (true)
@@ -63,6 +66,10 @@ public static class GraphExtensions
             }
         }
 
+        stopwatch.Stop();
+        var computeMaxFlowTime = stopwatch.Elapsed;
+        Console.WriteLine($"Time taken in ComputeMaxFlowWithPaths: {computeMaxFlowTime.TotalMilliseconds} ms");
+
         // Return the accumulated flow, limited to the targetFlow
         return maxFlow;
     }
@@ -76,6 +83,8 @@ public static class GraphExtensions
     /// <returns>A tuple containing the list of edges constituting the path and the flow that can be pushed through this path.</returns>
     private static (List<FlowEdge> path, BigInteger flow) Bfs(this FlowGraph graph, string source, string sink)
     {
+        var stopwatch = Stopwatch.StartNew();
+
         var visited = new HashSet<string>();
         var queue = new Queue<(string node, List<FlowEdge> path)>();
         visited.Add(source);
@@ -103,6 +112,8 @@ public static class GraphExtensions
                     if (edge.To == sink)
                     {
                         BigInteger pathFlow = newPath.Min(e => e.CurrentCapacity);
+                        stopwatch.Stop();
+                        Console.WriteLine($"Time taken in BFS to find path: {stopwatch.Elapsed.TotalMilliseconds} ms");
                         return (newPath, pathFlow);
                     }
 
@@ -112,6 +123,9 @@ public static class GraphExtensions
                 }
             }
         }
+
+        stopwatch.Stop();
+        Console.WriteLine($"Time taken in BFS without finding path: {stopwatch.Elapsed.TotalMilliseconds} ms");
 
         // No valid path found
         return (new List<FlowEdge>(), 0);
