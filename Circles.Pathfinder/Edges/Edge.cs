@@ -1,6 +1,6 @@
 namespace Circles.Pathfinder.Edges;
 
-public abstract class Edge
+public record Edge
 {
     public string From { get; }
     public string To { get; }

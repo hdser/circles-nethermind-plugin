@@ -732,3 +732,76 @@ ILogParser[] logParsers =
     // ...
 ];
 ```
+
+
+## Test scripts
+```shell
+curl 'https://rpc.aboutcircles.com/' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"jsonrpc":"2.0","id":2,"method":"circlesV2_findPath","params":[{"Source":"0xcadd4ea3bcc361fc4af2387937d7417be8d7dfc2","Sink":"0x42cedde51198d1773590311e2a340dc06b24cb37","TargetFlow":"99999999999999999999999999999999999"}]}'
+```
+
+
+```shell
+curl -X POST --data '{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "circles_query",
+  "params": [
+    {
+      "Namespace": "V_CrcV2",
+      "Table": "TrustRelations",
+      "Columns": [],
+      "Filter": [
+        {
+          "Type": "Conjunction",
+          "ConjunctionType": "Or",
+          "Predicates": [
+            {
+              "Type": "Conjunction",
+              "ConjunctionType": "And",
+              "Predicates": [
+                {
+                  "Type": "FilterPredicate",
+                  "FilterType": "Equals",
+                  "Column": "truster",
+                  "Value": "0x324618048eb1fb5c481de9a45cfafc704bfbcefd"
+                },
+                {
+                  "Type": "FilterPredicate",
+                  "FilterType": "Equals",
+                  "Column": "trustee",
+                  "Value": "0xde374ece6fa50e781e81aac78e811b33d16912c7"
+                }
+              ]
+            },
+            {
+              "Type": "Conjunction",
+              "ConjunctionType": "And",
+              "Predicates": [
+                {
+                  "Type": "FilterPredicate",
+                  "FilterType": "Equals",
+                  "Column": "truster",
+                  "Value": "0xde374ece6fa50e781e81aac78e811b33d16912c7"
+                },
+                {
+                  "Type": "FilterPredicate",
+                  "FilterType": "Equals",
+                  "Column": "trustee",
+                  "Value": "0x324618048eb1fb5c481de9a45cfafc704bfbcefd"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "Order": [
+      ]
+    }
+  ]
+}' -H "Content-Type: application/json" https://rpc.aboutcircles.com/ | jq
+
+
+```
+

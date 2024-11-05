@@ -1,9 +1,8 @@
 using Circles.Index.CirclesV2;
-using Circles.Index.Common;
-using Circles.Index.Query;
 using Circles.Pathfinder.Graphs;
 using Circles.Pathfinder.Edges;
 using Nethermind.Int256;
+using Npgsql;
 
 namespace Circles.Pathfinder.Data
 {
@@ -19,51 +18,48 @@ namespace Circles.Pathfinder.Data
         // Track edge actions by block number.
         private readonly Dictionary<long, List<TrustEdgeAction>> _edgeActionsByBlock = new();
 
-        /// <summary>
-        /// Initializes the graph up to a specific block from stored data.
-        /// </summary>
-        /// <param name="context">The database context.</param>
-        /// <param name="initialBlockNumber">The block number up to which data should be loaded.</param>
-        public void InitializeFromDatabase(Context context, long initialBlockNumber)
+        public async Task InitializeFromDatabase(string connectionString, long initialBlockNumber)
         {
+            using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
+
             // 1. Load all events from the database up to the initial block number
-            var selectTrustEvents = new Select(
-                "CrcV2",
-                "Trust",
-                ["blockNumber", "transactionIndex", "logIndex", "truster", "trustee", "expiryTime"],
-                [new FilterPredicate("blockNumber", FilterType.LessThanOrEquals, initialBlockNumber)],
-                [
-                    new OrderBy("blockNumber", "asc"), new OrderBy("transactionIndex", "asc"),
-                    new OrderBy("logIndex", "asc")
-                ],
-                int.MaxValue);
+            var sql = @"
+                select ""blockNumber"",
+                       ""transactionIndex"",
+                       ""transactionHash"",
+                       ""logIndex"",
+                       ""canSendTo"",
+                       ""user"",
+                       ""limit""
+                from ""CrcV1_Trust""
+                where ""blockNumber"" <= @initialBlockNumber
+                order by ""blockNumber"", ""transactionIndex"", ""logIndex"";";
 
-            var selectTrustEventsSql = selectTrustEvents.ToSql(context.Database);
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("initialBlockNumber", initialBlockNumber);
 
-            // 2. Process each event to build the graph
-            var result = context.Database.Select(selectTrustEventsSql);
-            var trustEvents = result.Rows.Select(o =>
+            await using var reader = await command.ExecuteReaderAsync();
+            while (reader.Read())
             {
-                var blockNumber = (long)(o[0] ?? throw new Exception("Block number is null"));
-                var transactionIndex = (int)(o[1] ?? throw new Exception("Transaction index is null"));
-                var logIndex = (int)(o[2] ?? throw new Exception("Log index is null"));
-                var truster = (string)(o[3] ?? throw new Exception("Truster is null"));
-                var trustee = (string)(o[4] ?? throw new Exception("Trustee is null"));
-                var expiryTime = (string)(o[5] ?? throw new Exception("Expiry time is null"));
+                var blockNumber = reader.GetInt64(0);
+                var transactionIndex = reader.GetInt32(1);
+                var transactionHash = reader.GetString(2);
+                var logIndex = reader.GetInt32(3);
+                var trustee = reader.GetString(4);
+                var truster = reader.GetString(5);
+                var expiryTime = reader.GetInt64(6) > 0 ? "2530771325" : "0";
 
-                return new Trust(blockNumber
+                var trust = new Trust(blockNumber
                     , 0
                     , transactionIndex
                     , logIndex
-                    , ""
+                    , transactionHash
                     , truster
                     , trustee
                     , UInt256.Parse(expiryTime));
-            });
 
-            foreach (var trustEvent in trustEvents)
-            {
-                HandleTrustEvent(trustEvent);
+                HandleTrustEvent(trust);
             }
         }
 
@@ -93,6 +89,8 @@ namespace Circles.Pathfinder.Data
             }
         }
 
+        private long lastBlockNumber = 0;
+        
         /// <summary>
         /// Processes a Trust event to immediately update the graph and record the action for potential reorgs.
         /// </summary>
@@ -117,10 +115,10 @@ namespace Circles.Pathfinder.Data
             actions.Add(edgeAction);
 
             // Optionally, remove finalized actions to save memory.
-            var finalizedBlock = trust.BlockNumber - finalityDepth;
-            if (_edgeActionsByBlock.ContainsKey(finalizedBlock))
+            var finalizedBlocks = _edgeActionsByBlock.Where(o => o.Key <= trust.BlockNumber - finalityDepth).ToList();
+            foreach (var finalizedBlock in finalizedBlocks)
             {
-                _edgeActionsByBlock.Remove(finalizedBlock);
+                _edgeActionsByBlock.Remove(finalizedBlock.Key);
             }
         }
 
@@ -175,8 +173,7 @@ namespace Circles.Pathfinder.Data
 
             if (!TrustGraph.Edges.Remove(edge))
             {
-                // Edge might not exist; that's acceptable in this context.
-                return;
+                throw new Exception("Edge not found in graph.");
             }
 
             if (TrustGraph.AvatarNodes.TryGetValue(truster, out var trusterNode))
