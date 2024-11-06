@@ -43,3 +43,10 @@ The aggregator processes two main types of events:
     - **Reversing Actions**: Applies the inverse of all actions (events) that occurred after the specified block, effectively undoing those changes.
     - **Timestamp Adjustment**: Resets the internal `_currentTimestamp` to the timestamp of the specified block.
 - **Use Cases**: Handling blockchain reorganizations or rolling back to a known good state for analysis.
+
+## Integration with other Components
+
+On startup, all database-persisted trust events are replayed in order and sent
+to the `TrustGraphAggregator`. After the initialization it must receive all new `Trust` events
+as well as all blocks. The block must be wrapped in a `BlockEvent` and is used to
+update the aggregator's time so that it can determine when a trust relation expires.
