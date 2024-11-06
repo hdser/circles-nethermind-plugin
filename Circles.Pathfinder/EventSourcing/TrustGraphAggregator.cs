@@ -42,7 +42,7 @@ public class TrustGraphAggregator : IAggregator<IIndexEvent, TrustGraph>
     /// <exception cref="InvalidOperationException"></exception>
     private IEnumerable<IEventAction<TrustGraph>> MapEventToActions(IIndexEvent @event, TrustGraph state)
     {
-        if (@event.Timestamp <= _currentTimestamp)
+        if (@event.Timestamp < _currentTimestamp)
         {
             throw new InvalidOperationException(
                 $"Event timestamp is older than the current timestamp of the aggregator. Current timestamp: {_currentTimestamp}, event timestamp: {@event.Timestamp}");

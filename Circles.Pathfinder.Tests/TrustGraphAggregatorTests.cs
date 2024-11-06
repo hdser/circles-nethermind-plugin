@@ -1,7 +1,10 @@
 using Circles.Index.CirclesV2;
+using Circles.Pathfinder.Data;
 using Circles.Pathfinder.EventSourcing;
 using Circles.Pathfinder.Edges;
+using Circles.Pathfinder.Graphs;
 using Nethermind.Int256;
+using Npgsql;
 
 namespace Circles.Pathfinder.Tests;
 
@@ -10,10 +13,46 @@ public class TrustGraphAggregatorTests
 {
     private TrustGraphAggregator aggregator;
 
+    private const string ConnectionString =
+        "Host=localhost;Port=5432;Username=postgres;Password=postgres;Database=postgres";
+
     [SetUp]
     public void SetUp()
     {
         aggregator = new TrustGraphAggregator();
+    }
+
+    [Test]
+    public void LoadV2Data()
+    {
+        // Load a trust graph from individual events
+        var trustEvents = new LoadGraph(ConnectionString).LoadV2TrustEvents();
+        foreach (var trustEvent in trustEvents)
+        {
+            aggregator.ProcessEvent(trustEvent);
+        }
+
+        // Load the current trust graph from a database view
+        var loadGraph = new LoadGraph(ConnectionString);
+        var graphFactory = new GraphFactory();
+        var trustGraph = graphFactory.V2TrustGraph(loadGraph);
+
+        // Compare the two trust graphs
+        Assert.That(aggregator.GetState().Edges.Count, Is.EqualTo(trustGraph.Edges.Count));
+        Assert.That(aggregator.GetState().Nodes.Count, Is.EqualTo(trustGraph.Nodes.Count));
+    }
+
+    [Test]
+    public void ProcessEvents_CanHandleEventsWithSameTimestamp()
+    {
+        var trustEvent1 = new Trust(1, 100, 0, 0, "0x", "0xTruster1", "0xTrustee1", new UInt256(200));
+        var trustEvent2 = new Trust(2, 100, 0, 0, "0x", "0xTruster2", "0xTrustee2", new UInt256(200));
+
+        aggregator.ProcessEvent(trustEvent1);
+        aggregator.ProcessEvent(trustEvent2);
+
+        Assert.That(aggregator.GetState().Edges.Count == 2);
+        Assert.That(aggregator.GetState().Nodes.Count == 4);
     }
 
     [Test]
