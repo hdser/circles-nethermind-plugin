@@ -54,9 +54,9 @@ namespace Circles.Pathfinder.Data
             }
         }
 
-        public IEnumerable<Trust> LoadV2TrustEvents()
+        public IEnumerable<Trust> LoadV2TrustEvents(long? fromBlock = null, long? toBlock = null)
         {
-            var trustEventsQuery = @"
+            var trustEventsQuery = $@"
                 select ""blockNumber"",
                        timestamp,
                        ""transactionIndex"",
@@ -66,6 +66,8 @@ namespace Circles.Pathfinder.Data
                        truster,
                        ""expiryTime""::text
                 from ""V_CrcV2_TrustRelations""
+                where {(fromBlock is null ? "1 = 1" : $"\"blockNumber\" >= {fromBlock}")}
+                  and {(toBlock is null ? "2 = 2" : $"\"blockNumber\" <= {toBlock}")}
                 order by ""blockNumber"", ""transactionIndex"", ""logIndex"";
             ";
 

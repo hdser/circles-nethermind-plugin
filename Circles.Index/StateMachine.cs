@@ -1,12 +1,15 @@
 using Circles.Index.Common;
 using Circles.Index.Rpc;
+using Circles.Pathfinder.Data;
+using Circles.Pathfinder.EventSourcing;
+using Google.OrTools.ConstraintSolver;
 using Nethermind.Blockchain;
 using Nethermind.Blockchain.Receipts;
 
 namespace Circles.Index;
 
 public class StateMachine(
-    Context context,
+    Context<TrustGraphAggregator> context,
     IBlockTree blockTree,
     IReceiptFinder receiptFinder,
     CancellationToken cancellationToken)
@@ -20,6 +23,7 @@ public class StateMachine(
         New,
         Initial,
         Syncing,
+        UpdateTrustGraph,
         NotifySubscribers,
         Reorg,
         WaitForNewBlock,
@@ -70,7 +74,14 @@ public class StateMachine(
                             context.Logger.Info(
                                 $"Reorg at {enterState.Arg}. Deleting all events from this block onwards...");
 
+                            long timestampBeforeReorg = context.Database.GetBlockTimestampByNumber(enterState.Arg - 1);
+
+                            // Delete all events in the DB from the block onwards
                             await context.Database.DeleteFromBlockOnwards(enterState.Arg);
+
+                            // Revert the in-mem trust graph to the block before the reorg
+                            context.Aggregates.RevertToBlock(enterState.Arg - 1, timestampBeforeReorg);
+
                             await TransitionTo(State.WaitForNewBlock);
                             return;
                     }
@@ -103,7 +114,30 @@ public class StateMachine(
                                                  $"to {importedBlockRange.Max}");
                             Errors.Clear();
 
-                            await TransitionTo(State.NotifySubscribers, importedBlockRange);
+                            await TransitionTo(State.UpdateTrustGraph, importedBlockRange);
+                            return;
+                    }
+
+                    break;
+
+                case State.UpdateTrustGraph:
+                    switch (e)
+                    {
+                        case EnterState<Range<long>> importedBlockRange:
+                            // Load all new imported trust events in the range and apply them to the trust graph
+                            var trustEvents = new LoadGraph(context.Settings.IndexDbConnectionString)
+                                .LoadV2TrustEvents(importedBlockRange.Arg.Min, importedBlockRange.Arg.Max);
+
+                            foreach (var trustEvent in trustEvents)
+                            {
+                                context.Aggregates.ProcessEvent(trustEvent);
+                            }
+
+                            // Set the aggregators time to the timestamp of the last imported block 
+                            long timestampAtLastImportedBlock = context.Database.GetBlockTimestampByNumber(importedBlockRange.Arg.Max);
+                            context.Aggregates.ProcessEvent(new BlockEvent(importedBlockRange.Arg.Max, timestampAtLastImportedBlock));
+
+                            await TransitionTo(State.NotifySubscribers, importedBlockRange.Arg);
                             return;
                     }
 
@@ -209,7 +243,8 @@ public class StateMachine(
         var nextBlock = lastIndexHeight + 1;
         if (nextBlock < context.Settings.StartBlock)
         {
-            context.Logger.Debug($"Enumerating blocks to sync from {context.Settings.StartBlock} (StartBlock) to {toBlock}");
+            context.Logger.Debug(
+                $"Enumerating blocks to sync from {context.Settings.StartBlock} (StartBlock) to {toBlock}");
             nextBlock = context.Settings.StartBlock;
         }
         else

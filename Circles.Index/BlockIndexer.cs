@@ -1,5 +1,6 @@
 using System.Threading.Tasks.Dataflow;
 using Circles.Index.Common;
+using Circles.Pathfinder.EventSourcing;
 using Nethermind.Blockchain;
 using Nethermind.Blockchain.Receipts;
 using Nethermind.Core;
@@ -12,7 +13,7 @@ public record BlockWithReceipts(Block Block, TxReceipt[] Receipts);
 public class ImportFlow(
     IBlockTree blockTree,
     IReceiptFinder receiptFinder,
-    Context context)
+    Context<TrustGraphAggregator> context)
 {
     private static readonly IndexPerformanceMetrics Metrics = new();
 
@@ -179,7 +180,7 @@ public class ImportFlow(
         {
             // FLush events
             await context.Sink.Flush();
-            
+
             // Flush blocks
             await FlushBlocks();
         }

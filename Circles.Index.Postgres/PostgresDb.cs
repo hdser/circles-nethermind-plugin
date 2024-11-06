@@ -258,6 +258,28 @@ public class PostgresDb(string connectionString, IDatabaseSchema schema) : IData
         return null;
     }
 
+    public long GetBlockTimestampByNumber(long blockNumber)
+    {
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
+
+        using NpgsqlCommand cmd = connection.CreateCommand();
+        cmd.CommandText = $@"
+            SELECT ""timestamp""
+            FROM ""System_Block""
+            WHERE ""blockNumber"" = @blockNumber
+        ";
+        cmd.Parameters.AddWithValue("@blockNumber", blockNumber);
+
+        object? result = cmd.ExecuteScalar();
+        if (result is long longResult)
+        {
+            return longResult;
+        }
+
+        throw new InvalidOperationException($"Block with number {blockNumber} not found");
+    }
+
     public IEnumerable<(long BlockNumber, Hash256 BlockHash)> LastPersistedBlocks(int count = 100)
     {
         using var connection = new NpgsqlConnection(connectionString);

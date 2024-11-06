@@ -1,10 +1,9 @@
 ﻿using Circles.Index.Common;
 using Circles.Index.Postgres;
-using Circles.Index.Query;
 using Circles.Index.Rpc;
+using Circles.Pathfinder.EventSourcing;
 using Nethermind.Api;
 using Nethermind.Api.Extensions;
-using Nethermind.Core;
 using Nethermind.Core.Extensions;
 using Nethermind.JsonRpc.Modules;
 using Nethermind.Logging;
@@ -25,7 +24,7 @@ public class Plugin : INethermindPlugin
     private readonly CancellationTokenSource _cancellationTokenSource = new();
 
     private StateMachine? _indexerMachine;
-    private Context? _indexerContext;
+    private Context<TrustGraphAggregator>? _indexerContext;
     private int _isProcessing;
     private int _newItemsArrived;
     private long _latestHeadToIndex = -1;
@@ -62,8 +61,6 @@ public class Plugin : INethermindPlugin
             ]),
             settings.EventBufferSize);
 
-        InitCaches(pluginLogger, database);
-
         ILogParser[] logParsers =
         [
             new CirclesV1.LogParser(settings.CirclesV1HubAddress),
@@ -72,13 +69,17 @@ public class Plugin : INethermindPlugin
             new CirclesV2.StandardTreasury.LogParser(settings.CirclesStandardTreasuryAddress)
         ];
 
-        _indexerContext = new Context(
+        _indexerContext = new Context<TrustGraphAggregator>(
             nethermindApi,
             pluginLogger,
             settings,
             database,
             logParsers,
-            sink);
+            sink,
+            new TrustGraphAggregator()
+        );
+
+        CacheWarmup.InitCaches(_indexerContext);
 
         _indexerMachine = new StateMachine(
             _indexerContext
@@ -134,57 +135,6 @@ public class Plugin : INethermindPlugin
         pluginLogger.Info(" * V2 Name Registry address: " + settings.CirclesNameRegistryAddress);
         pluginLogger.Info(" * V2 Standard Treasury address: " + settings.CirclesStandardTreasuryAddress);
         // pluginLogger.Info("Start index from: " + settings.StartBlock);
-    }
-
-    private static void InitCaches(InterfaceLogger logger, IDatabase database)
-    {
-        logger.Info("Caching Circles token addresses");
-
-        var selectSignups = new Select(
-            "CrcV1",
-            "Signup",
-            ["token"],
-            [],
-            [],
-            int.MaxValue,
-            false,
-            int.MaxValue);
-
-        var sql = selectSignups.ToSql(database);
-        var result = database.Select(sql);
-        var rows = result.Rows.ToArray();
-
-        logger.Info($" * Found {rows.Length} Circles token addresses");
-
-        foreach (var row in rows)
-        {
-            CirclesV1.LogParser.CirclesTokenAddresses.TryAdd(new Address(row[0]!.ToString()!), null);
-        }
-
-        logger.Info("Caching Circles token addresses done");
-
-        logger.Info("Caching erc20 wrapper addresses");
-
-        var selectErc20WrapperDeployed = new Select(
-            "CrcV2",
-            "ERC20WrapperDeployed",
-            ["erc20Wrapper"],
-            [],
-            [],
-            int.MaxValue,
-            false,
-            int.MaxValue);
-
-        sql = selectErc20WrapperDeployed.ToSql(database);
-        result = database.Select(sql);
-        rows = result.Rows.ToArray();
-
-        logger.Info($" * Found {rows.Length} erc20 wrapper addresses");
-
-        foreach (var row in rows)
-        {
-            CirclesV2.LogParser.Erc20WrapperAddresses.TryAdd(new Address(row[0]!.ToString()!), null);
-        }
     }
 
     private void HandleNewHead()
