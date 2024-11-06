@@ -1,5 +1,6 @@
 using Circles.Pathfinder.Edges;
 using Circles.Pathfinder.Nodes;
+using Nethermind.Int256;
 
 namespace Circles.Pathfinder.Graphs;
 
@@ -9,14 +10,39 @@ public class TrustGraph : IGraph<TrustEdge>
     public IDictionary<string, AvatarNode> AvatarNodes { get; } = new Dictionary<string, AvatarNode>();
     public HashSet<TrustEdge> Edges { get; } = new();
 
-    public void AddAvatar(string avatarAddress)
+    public AvatarNode AddAvatar(string avatarAddress)
     {
         var avatar = new AvatarNode(avatarAddress);
         AvatarNodes.Add(avatarAddress, avatar);
         Nodes.Add(avatarAddress, avatar);
+
+        return avatar;
     }
 
-    public void AddTrustEdge(string truster, string trustee)
+    public void RemoveAvatar(string avatarAddress)
+    {
+        if (!AvatarNodes.TryGetValue(avatarAddress, out var avatarNode))
+        {
+            throw new Exception("Avatar not found in graph.");
+        }
+
+        foreach (var edge in avatarNode.InEdges.Cast<TrustEdge>())
+        {
+            Edges.Remove(edge);
+            AvatarNodes[edge.From].OutEdges.Remove(edge);
+        }
+
+        foreach (var edge in avatarNode.OutEdges.Cast<TrustEdge>())
+        {
+            Edges.Remove(edge);
+            AvatarNodes[edge.To].InEdges.Remove(edge);
+        }
+
+        AvatarNodes.Remove(avatarAddress);
+        Nodes.Remove(avatarAddress);
+    }
+
+    public void AddTrustEdge(string truster, string trustee, UInt256 expiryTime)
     {
         truster = truster.ToLower();
         trustee = trustee.ToLower();
@@ -33,7 +59,7 @@ public class TrustGraph : IGraph<TrustEdge>
             AvatarNodes[trustee] = trusteeNode;
         }
 
-        var trustEdge = new TrustEdge(truster, trustee);
+        var trustEdge = new TrustEdge(truster, trustee, expiryTime);
         if (!trusterNode.OutEdges.Contains(trustEdge))
         {
             trusterNode.OutEdges.Add(trustEdge);

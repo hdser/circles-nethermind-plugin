@@ -1,5 +1,6 @@
 using System.Numerics;
 using Circles.Pathfinder.Data;
+using Nethermind.Int256;
 
 namespace Circles.Pathfinder.Graphs
 {
@@ -25,7 +26,7 @@ namespace Circles.Pathfinder.Graphs
                     graph.AddAvatar(trustEdge.Trustee);
                 }
 
-                graph.AddTrustEdge(trustEdge.Truster, trustEdge.Trustee);
+                graph.AddTrustEdge(trustEdge.Truster, trustEdge.Trustee, trustEdge.ExpiryTime);
             }
 
             return graph;

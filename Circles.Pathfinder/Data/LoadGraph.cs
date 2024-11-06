@@ -1,3 +1,4 @@
+using Nethermind.Int256;
 using Npgsql;
 
 namespace Circles.Pathfinder.Data
@@ -29,10 +30,10 @@ namespace Circles.Pathfinder.Data
             }
         }
 
-        public IEnumerable<(string Truster, string Trustee, int Limit)> LoadV2Trust()
+        public IEnumerable<(string Truster, string Trustee, UInt256 ExpiryTime)> LoadV2Trust()
         {
             var trustQuery = @"
-                select truster, trustee
+                select truster, trustee, ""expiryTime""::text
                 from ""V_CrcV2_TrustRelations"";
             ";
 
@@ -46,8 +47,9 @@ namespace Circles.Pathfinder.Data
             {
                 var truster = reader.GetString(0);
                 var trustee = reader.GetString(1);
+                var expiryTime = UInt256.Parse(reader.GetString(2));
 
-                yield return (truster, trustee, 100); // Assuming a default trust limit of 100 in V2
+                yield return (truster, trustee, expiryTime);
             }
         }
     }

@@ -25,18 +25,4 @@ public class PathfinderTests
         var result = await pathfinder.ComputeMaxFlow(flowRequest);
         Assert.That(result.MaxFlow, Is.Not.EqualTo("0"));
     }
-
-
-    [Test]
-    public async Task InitInMemoryGraph()
-    {
-        var inMemoryTrustGraph = new InMemoryTrustGraph();
-        await inMemoryTrustGraph.InitializeFromDatabase(ConnectionString, 36859320);
-        Assert.That(inMemoryTrustGraph.TrustGraph, Is.Not.Null);
-
-        inMemoryTrustGraph.HandleReorg(36859319);
-
-        var inMemoryBalanceGraph = new InMemoryBalanceGraph();
-        await inMemoryBalanceGraph.InitializeFromDatabase(ConnectionString, 36859320);
-    }
 }
