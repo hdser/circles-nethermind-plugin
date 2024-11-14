@@ -1,6 +1,6 @@
 using Circles.Index.Common;
 
-namespace Circles.Pathfinder.EventSourcing;
+namespace Circles.Index.EventSourcing;
 
 /// <summary>
 /// Acts like 'reduce()' but for a stream of events instead of a collection.

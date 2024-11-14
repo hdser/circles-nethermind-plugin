@@ -1,7 +1,4 @@
-using Circles.Pathfinder.Edges;
-using Circles.Pathfinder.Nodes;
-
-namespace Circles.Pathfinder.Graphs;
+namespace Circles.Index.Graphs;
 
 public interface IGraph<TEdge>
     where TEdge : Edge

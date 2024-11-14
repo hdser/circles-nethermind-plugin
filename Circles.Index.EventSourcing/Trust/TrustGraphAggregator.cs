@@ -1,9 +1,7 @@
-using Circles.Index.CirclesV2;
 using Circles.Index.Common;
-using Circles.Pathfinder.Edges;
-using Circles.Pathfinder.Graphs;
+using Circles.Index.Graphs;
 
-namespace Circles.Pathfinder.EventSourcing;
+namespace Circles.Index.EventSourcing.Trust;
 
 /// <summary>
 /// Aggregates Circles trust events into a trust graph.
@@ -68,7 +66,7 @@ public class TrustGraphAggregator : IAggregator<IIndexEvent, TrustGraph>
 
                 break;
             }
-            case Trust trustEvent:
+            case CirclesV2.Trust trustEvent:
             {
                 if (trustEvent.ExpiryTime > _currentTimestamp)
                 {

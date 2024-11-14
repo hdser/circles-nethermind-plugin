@@ -1,8 +1,8 @@
 using System.Numerics;
-using Circles.Pathfinder.Edges;
+using Circles.Index.Graphs;
 using Google.OrTools.Graph;
 
-namespace Circles.Pathfinder.Graphs;
+namespace Circles.Pathfinder;
 
 public static class GraphExtensions
 {

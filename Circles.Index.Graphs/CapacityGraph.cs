@@ -1,8 +1,6 @@
 using System.Numerics;
-using Circles.Pathfinder.Edges;
-using Circles.Pathfinder.Nodes;
 
-namespace Circles.Pathfinder.Graphs;
+namespace Circles.Index.Graphs;
 
 public class CapacityGraph : IGraph<CapacityEdge>
 {

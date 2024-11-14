@@ -1,11 +1,11 @@
 using System.Numerics;
 
-namespace Circles.Pathfinder.Nodes;
+namespace Circles.Index.Graphs;
 
 public class BalanceNode : Node
 {
     public string Token { get; }
-    public BigInteger Amount { get; }
+    public BigInteger Amount { get; set; }
 
     public string HolderAddress => Address.Split("-")[0];
 

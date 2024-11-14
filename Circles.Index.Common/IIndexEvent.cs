@@ -1,3 +1,5 @@
+using Nethermind.Int256;
+
 namespace Circles.Index.Common;
 
 public interface IIndexEvent
@@ -7,3 +9,14 @@ public interface IIndexEvent
     int TransactionIndex { get; }
     int LogIndex { get; }
 }
+
+public record TransferEvent(
+    long BlockNumber,
+    long Timestamp,
+    int TransactionIndex,
+    int LogIndex,
+    int BatchIndex,
+    string From,
+    string To,
+    string TokenAddress,
+    UInt256 Value) : IIndexEvent;

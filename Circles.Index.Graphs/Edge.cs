@@ -1,3 +1,3 @@
-namespace Circles.Pathfinder.Edges;
+namespace Circles.Index.Graphs;
 
 public record Edge(string From, string To);

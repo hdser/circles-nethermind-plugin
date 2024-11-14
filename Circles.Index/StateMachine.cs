@@ -1,15 +1,14 @@
 using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Index.Rpc;
 using Circles.Pathfinder.Data;
-using Circles.Pathfinder.EventSourcing;
-using Google.OrTools.ConstraintSolver;
 using Nethermind.Blockchain;
 using Nethermind.Blockchain.Receipts;
 
 namespace Circles.Index;
 
 public class StateMachine(
-    Context<TrustGraphAggregator> context,
+    Context<Aggregates> context,
     IBlockTree blockTree,
     IReceiptFinder receiptFinder,
     CancellationToken cancellationToken)
@@ -23,7 +22,7 @@ public class StateMachine(
         New,
         Initial,
         Syncing,
-        UpdateTrustGraph,
+        UpdateAggregates,
         NotifySubscribers,
         Reorg,
         WaitForNewBlock,
@@ -79,8 +78,9 @@ public class StateMachine(
                             // Delete all events in the DB from the block onwards
                             await context.Database.DeleteFromBlockOnwards(enterState.Arg);
 
-                            // Revert the in-mem trust graph to the block before the reorg
-                            context.Aggregates.RevertToBlock(enterState.Arg - 1, timestampBeforeReorg);
+                            // Revert the in-mem trust- and balance-graph to the block before the reorg
+                            context.Aggregates.BalanceGraph.RevertToBlock(enterState.Arg - 1, timestampBeforeReorg);
+                            context.Aggregates.TrustGraph.RevertToBlock(enterState.Arg - 1, timestampBeforeReorg);
 
                             await TransitionTo(State.WaitForNewBlock);
                             return;
@@ -114,13 +114,13 @@ public class StateMachine(
                                                  $"to {importedBlockRange.Max}");
                             Errors.Clear();
 
-                            await TransitionTo(State.UpdateTrustGraph, importedBlockRange);
+                            await TransitionTo(State.UpdateAggregates, importedBlockRange);
                             return;
                     }
 
                     break;
 
-                case State.UpdateTrustGraph:
+                case State.UpdateAggregates:
                     switch (e)
                     {
                         case EnterState<Range<long>> importedBlockRange:
@@ -130,12 +130,12 @@ public class StateMachine(
 
                             foreach (var trustEvent in trustEvents)
                             {
-                                context.Aggregates.ProcessEvent(trustEvent);
+                                context.Aggregates.TrustGraph.ProcessEvent(trustEvent);
                             }
 
                             // Set the aggregators time to the timestamp of the last imported block 
                             long timestampAtLastImportedBlock = context.Database.GetBlockTimestampByNumber(importedBlockRange.Arg.Max);
-                            context.Aggregates.ProcessEvent(new BlockEvent(importedBlockRange.Arg.Max, timestampAtLastImportedBlock));
+                            context.Aggregates.TrustGraph.ProcessEvent(new BlockEvent(importedBlockRange.Arg.Max, timestampAtLastImportedBlock));
 
                             await TransitionTo(State.NotifySubscribers, importedBlockRange.Arg);
                             return;

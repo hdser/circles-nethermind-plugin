@@ -1,13 +1,12 @@
 using System.Globalization;
 using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Index.Query;
 using Circles.Index.Query.Dto;
 using Circles.Index.Utils;
 using Circles.Pathfinder;
 using Circles.Pathfinder.Data;
 using Circles.Pathfinder.DTOs;
-using Circles.Pathfinder.EventSourcing;
-using Circles.Pathfinder.Graphs;
 using Nethermind.Core;
 using Nethermind.Core.Crypto;
 using Nethermind.Core.Extensions;
@@ -22,9 +21,9 @@ namespace Circles.Index.Rpc;
 public class CirclesRpcModule : ICirclesRpcModule
 {
     private readonly InterfaceLogger _pluginLogger;
-    private readonly Context<TrustGraphAggregator> _indexerContext;
+    private readonly Context<Aggregates> _indexerContext;
 
-    public CirclesRpcModule(Context<TrustGraphAggregator> indexerContext)
+    public CirclesRpcModule(Context<Aggregates> indexerContext)
     {
         ILogger baseLogger = indexerContext.NethermindApi.LogManager.GetClassLogger();
         _pluginLogger = new LoggerWithPrefix("Circles.Index.Rpc:", baseLogger);

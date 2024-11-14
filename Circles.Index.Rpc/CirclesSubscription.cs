@@ -1,6 +1,6 @@
 using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Index.Query;
-using Circles.Pathfinder.EventSourcing;
 using Nethermind.Core;
 using Nethermind.JsonRpc;
 using Nethermind.JsonRpc.Modules.Subscribe;
@@ -21,7 +21,7 @@ public class CirclesSubscription : Subscription
     public static long SubscriberCount => _subscriberCount;
     private static long _subscriberCount;
 
-    public CirclesSubscription(IJsonRpcDuplexClient jsonRpcDuplexClient, Context<TrustGraphAggregator> context,
+    public CirclesSubscription(IJsonRpcDuplexClient jsonRpcDuplexClient, Context<Aggregates> context,
         CirclesSubscriptionParams param) : base(
         jsonRpcDuplexClient)
     {
@@ -52,7 +52,7 @@ public class CirclesSubscription : Subscription
 
     public static event EventHandler<NotifyEventArgs>? Notification;
 
-    public static void Notify(Context<TrustGraphAggregator> context, Range<long> importedRange)
+    public static void Notify(Context<Aggregates> context, Range<long> importedRange)
     {
         if (_subscriberCount == 0)
         {

@@ -1,4 +1,4 @@
-namespace Circles.Pathfinder.Nodes;
+namespace Circles.Index.Graphs;
 
 public class AvatarNode : Node
 {

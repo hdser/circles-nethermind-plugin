@@ -1,14 +1,14 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Index.Query;
 using Circles.Index.Query.Dto;
-using Circles.Pathfinder.EventSourcing;
 using Nethermind.Core;
 
 namespace Circles.Index.Rpc;
 
-public class QueryEvents(Context<TrustGraphAggregator> context)
+public class QueryEvents(Context<Aggregates> context)
 {
     public static readonly ImmutableHashSet<string> AddressColumns = new HashSet<string>
     {

@@ -1,4 +1,4 @@
-namespace Circles.Pathfinder.EventSourcing;
+namespace Circles.Index.EventSourcing;
 
 public interface IEventAction<TState>
 {

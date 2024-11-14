@@ -1,6 +1,5 @@
 using Circles.Pathfinder.Data;
 using Circles.Pathfinder.DTOs;
-using Circles.Pathfinder.Graphs;
 
 namespace Circles.Pathfinder.Tests;
 

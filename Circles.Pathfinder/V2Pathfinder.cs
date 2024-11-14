@@ -1,22 +1,12 @@
 using System.Numerics;
+using Circles.Index.Graphs;
 using Circles.Pathfinder.Data;
 using Circles.Pathfinder.DTOs;
-using Circles.Pathfinder.Edges;
-using Circles.Pathfinder.Graphs;
 
 namespace Circles.Pathfinder;
 
-public class V2Pathfinder : IPathfinder
+public class V2Pathfinder(LoadGraph loadGraph, GraphFactory graphFactory) : IPathfinder
 {
-    private readonly LoadGraph _loadGraph;
-    private readonly GraphFactory _graphFactory;
-
-    public V2Pathfinder(LoadGraph loadGraph, GraphFactory graphFactory)
-    {
-        _loadGraph = loadGraph;
-        _graphFactory = graphFactory;
-    }
-
     public async Task<MaxFlowResponse> ComputeMaxFlow(FlowRequest request)
     {
         if (string.IsNullOrEmpty(request.Source) || string.IsNullOrEmpty(request.Sink))
@@ -30,14 +20,14 @@ public class V2Pathfinder : IPathfinder
         }
 
         // Load Trust and Balance Graphs
-        var trustGraph = _graphFactory.V2TrustGraph(_loadGraph);
-        var balanceGraph = _graphFactory.V2BalanceGraph(_loadGraph);
+        var trustGraph = graphFactory.V2TrustGraph(loadGraph);
+        var balanceGraph = graphFactory.V2BalanceGraph(loadGraph);
 
         // Create Capacity Graph
-        var capacityGraph = _graphFactory.CreateCapacityGraph(balanceGraph, trustGraph);
+        var capacityGraph = graphFactory.CreateCapacityGraph(balanceGraph, trustGraph);
 
         // Create Flow Graph
-        var flowGraph = _graphFactory.CreateFlowGraph(capacityGraph);
+        var flowGraph = graphFactory.CreateFlowGraph(capacityGraph);
 
         // Validate Source and Sink
         if (!trustGraph.Nodes.ContainsKey(request.Source))
@@ -186,6 +176,7 @@ public class V2Pathfinder : IPathfinder
                 }
             }
         });
+
         return collapsedGraph;
     }
 

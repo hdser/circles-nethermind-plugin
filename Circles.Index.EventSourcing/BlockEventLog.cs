@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Circles.Index.Common;
 
-namespace Circles.Pathfinder.EventSourcing;
+namespace Circles.Index.EventSourcing;
 
 /// <summary>
 /// A capped-size log of events that have been applied to an aggregate.

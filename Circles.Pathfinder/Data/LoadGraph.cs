@@ -1,62 +1,63 @@
 using Circles.Index.CirclesV2;
+using Circles.Index.Common;
 using Nethermind.Int256;
 using Npgsql;
 
-namespace Circles.Pathfinder.Data
+namespace Circles.Pathfinder.Data;
+
+// TODO: Use CirclesQuery<T> and remove the Npgsql dependency
+public class LoadGraph(string connectionString)
 {
-    // TODO: Use CirclesQuery<T> and remove the Npgsql dependency
-    public class LoadGraph(string connectionString)
+    public IEnumerable<(string Balance, string Account, string TokenAddress)> LoadV2Balances()
     {
-        public IEnumerable<(string Balance, string Account, string TokenAddress)> LoadV2Balances()
-        {
-            var balanceQuery = @"
+        var balanceQuery = @"
                 select ""demurragedTotalBalance""::text, ""account"", ""tokenAddress""
                 from ""V_CrcV2_BalancesByAccountAndToken""
                 where ""demurragedTotalBalance"" > 0;
             ";
 
-            using var connection = new NpgsqlConnection(connectionString);
-            connection.Open();
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
 
-            using var command = new NpgsqlCommand(balanceQuery, connection);
-            using var reader = command.ExecuteReader();
+        using var command = new NpgsqlCommand(balanceQuery, connection);
+        using var reader = command.ExecuteReader();
 
-            while (reader.Read())
-            {
-                var balance = reader.GetString(0);
-                var account = reader.GetString(1);
-                var tokenAddress = reader.GetString(2);
-
-                yield return (balance, account, tokenAddress);
-            }
-        }
-
-        public IEnumerable<(string Truster, string Trustee, UInt256 ExpiryTime)> LoadV2Trust()
+        while (reader.Read())
         {
-            var trustQuery = @"
+            var balance = reader.GetString(0);
+            var account = reader.GetString(1);
+            var tokenAddress = reader.GetString(2);
+
+            yield return (balance, account, tokenAddress);
+        }
+    }
+
+    public IEnumerable<(string Truster, string Trustee, UInt256 ExpiryTime)> LoadV2Trust()
+    {
+        var trustQuery = @"
                 select truster, trustee, ""expiryTime""::text
                 from ""V_CrcV2_TrustRelations"";
             ";
 
-            using var connection = new NpgsqlConnection(connectionString);
-            connection.Open();
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
 
-            using var command = new NpgsqlCommand(trustQuery, connection);
-            using var reader = command.ExecuteReader();
+        using var command = new NpgsqlCommand(trustQuery, connection);
+        using var reader = command.ExecuteReader();
 
-            while (reader.Read())
-            {
-                var truster = reader.GetString(0);
-                var trustee = reader.GetString(1);
-                var expiryTime = UInt256.Parse(reader.GetString(2));
-
-                yield return (truster, trustee, expiryTime);
-            }
-        }
-
-        public IEnumerable<Trust> LoadV2TrustEvents(long? fromBlock = null, long? toBlock = null)
+        while (reader.Read())
         {
-            var trustEventsQuery = $@"
+            var truster = reader.GetString(0);
+            var trustee = reader.GetString(1);
+            var expiryTime = UInt256.Parse(reader.GetString(2));
+
+            yield return (truster, trustee, expiryTime);
+        }
+    }
+
+    public IEnumerable<Trust> LoadV2TrustEvents(long? fromBlock = null, long? toBlock = null)
+    {
+        var trustEventsQuery = $@"
                 select ""blockNumber"",
                        timestamp,
                        ""transactionIndex"",
@@ -71,33 +72,79 @@ namespace Circles.Pathfinder.Data
                 order by ""blockNumber"", ""transactionIndex"", ""logIndex"";
             ";
 
-            using var connection = new NpgsqlConnection(connectionString);
-            connection.Open();
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
 
-            using var command = new NpgsqlCommand(trustEventsQuery, connection);
-            using var reader = command.ExecuteReader();
+        using var command = new NpgsqlCommand(trustEventsQuery, connection);
+        using var reader = command.ExecuteReader();
 
-            while (reader.Read())
-            {
-                var blockNumber = reader.GetInt32(0);
-                var timestamp = reader.GetInt64(1);
-                var transactionIndex = reader.GetInt32(2);
-                var logIndex = reader.GetInt32(3);
-                var transactionHash = reader.GetString(4);
-                var trustee = reader.GetString(5);
-                var truster = reader.GetString(6);
-                var expiryTime = UInt256.Parse(reader.GetString(7));
+        while (reader.Read())
+        {
+            var blockNumber = reader.GetInt32(0);
+            var timestamp = reader.GetInt64(1);
+            var transactionIndex = reader.GetInt32(2);
+            var logIndex = reader.GetInt32(3);
+            var transactionHash = reader.GetString(4);
+            var trustee = reader.GetString(5);
+            var truster = reader.GetString(6);
+            var expiryTime = UInt256.Parse(reader.GetString(7));
 
-                yield return new Trust(
-                    blockNumber,
-                    timestamp,
-                    transactionIndex,
-                    logIndex,
-                    transactionHash,
-                    truster,
-                    trustee,
-                    expiryTime);
-            }
+            yield return new Trust(
+                blockNumber,
+                timestamp,
+                transactionIndex,
+                logIndex,
+                transactionHash,
+                truster,
+                trustee,
+                expiryTime);
+        }
+    }
+
+    public IEnumerable<TransferEvent> LoadV2Transfers()
+    {
+        var transferQuery = @"
+            SELECT ""blockNumber"",
+                   ""timestamp"",
+                   ""transactionIndex"",
+                   ""logIndex"",
+                   ""batchIndex"",
+                   ""from"",
+                   ""to"",
+                   ""tokenAddress"",
+                   ""value""::text
+            FROM ""V_CrcV2_Transfers""
+            WHERE ""tokenType"" IN ('CrcV2_RegisterHuman','CrcV2_RegisterGroup')
+            ORDER BY ""blockNumber"", ""transactionIndex"", ""logIndex""; ";
+
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
+
+        using var command = new NpgsqlCommand(transferQuery, connection);
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var blockNumber = reader.GetInt64(0);
+            var timestamp = reader.GetInt64(1);
+            var transactionIndex = reader.GetInt32(2);
+            var logIndex = reader.GetInt32(3);
+            var batchIndex = reader.GetInt32(4);
+            var from = reader.GetString(5);
+            var to = reader.GetString(6);
+            var tokenAddress = reader.GetString(7);
+            var value = UInt256.Parse(reader.GetString(8));
+
+            yield return new TransferEvent(
+                blockNumber,
+                timestamp,
+                transactionIndex,
+                logIndex,
+                batchIndex,
+                from,
+                to,
+                tokenAddress,
+                value);
         }
     }
 }

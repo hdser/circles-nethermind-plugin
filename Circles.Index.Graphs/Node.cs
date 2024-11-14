@@ -1,6 +1,4 @@
-using Circles.Pathfinder.Edges;
-
-namespace Circles.Pathfinder.Nodes;
+namespace Circles.Index.Graphs;
 
 public abstract class Node
 {

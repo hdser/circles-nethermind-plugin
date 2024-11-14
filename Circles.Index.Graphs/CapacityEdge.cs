@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Circles.Pathfinder.Edges;
+namespace Circles.Index.Graphs;
 
 /// <summary>
 /// Represents a capacity edge for potential token transfers between nodes.

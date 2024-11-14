@@ -1,6 +1,6 @@
 using Circles.Index.Common;
 
-namespace Circles.Pathfinder.EventSourcing;
+namespace Circles.Index.EventSourcing;
 
 public class BlockEvent(long blockNumber, long timestamp) : IIndexEvent
 {

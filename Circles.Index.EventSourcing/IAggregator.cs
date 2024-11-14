@@ -1,6 +1,6 @@
 using Circles.Index.Common;
 
-namespace Circles.Pathfinder.EventSourcing;
+namespace Circles.Index.EventSourcing;
 
 public interface IAggregator<in TEvent, out TState>
     where TEvent : IIndexEvent

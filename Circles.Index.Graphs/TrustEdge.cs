@@ -1,6 +1,6 @@
 using Nethermind.Int256;
 
-namespace Circles.Pathfinder.Edges;
+namespace Circles.Index.Graphs;
 
 /// <summary>
 /// Represents a trust relationship between two nodes.

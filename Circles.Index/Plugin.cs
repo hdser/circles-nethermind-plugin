@@ -1,7 +1,7 @@
 ﻿using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Index.Postgres;
 using Circles.Index.Rpc;
-using Circles.Pathfinder.EventSourcing;
 using Nethermind.Api;
 using Nethermind.Api.Extensions;
 using Nethermind.Core.Extensions;
@@ -24,7 +24,7 @@ public class Plugin : INethermindPlugin
     private readonly CancellationTokenSource _cancellationTokenSource = new();
 
     private StateMachine? _indexerMachine;
-    private Context<TrustGraphAggregator>? _indexerContext;
+    private Context<Aggregates>? _indexerContext;
     private int _isProcessing;
     private int _newItemsArrived;
     private long _latestHeadToIndex = -1;
@@ -69,14 +69,14 @@ public class Plugin : INethermindPlugin
             new CirclesV2.StandardTreasury.LogParser(settings.CirclesStandardTreasuryAddress)
         ];
 
-        _indexerContext = new Context<TrustGraphAggregator>(
+        _indexerContext = new Context<Aggregates>(
             nethermindApi,
             pluginLogger,
             settings,
             database,
             logParsers,
             sink,
-            new TrustGraphAggregator()
+            new Aggregates()
         );
 
         CacheWarmup.InitCaches(_indexerContext);
