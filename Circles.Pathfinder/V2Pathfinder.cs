@@ -100,6 +100,7 @@ public class V2Pathfinder(LoadGraph loadGraph, GraphFactory graphFactory) : IPat
                 avatars.Add(p.To);
             }
         }));
+        
         foreach (var avatar in avatars)
         {
             collapsedGraph.AddAvatar(avatar);

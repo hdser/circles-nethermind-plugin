@@ -54,7 +54,14 @@ public class BalanceGraph : IGraph<CapacityEdge>
             : BigInteger.Zero;
     }
 
-    public void SetBalance(string address, string token, BigInteger balance)
+    public BigInteger GetDemurragedBalance(string address, string token)
+    {
+        return BalanceNodes.TryGetValue(address + "-" + token, out var balanceNode)
+            ? balanceNode.DemurragedAmount
+            : BigInteger.Zero;
+    }
+
+    public void SetBalance(string address, string token, BigInteger balance, long timestamp)
     {
         if (balance == BigInteger.Zero)
         {
@@ -80,6 +87,7 @@ public class BalanceGraph : IGraph<CapacityEdge>
         TryRemoveNode(address + "-" + token);
 
         var balanceNode = new BalanceNode(address, token, balance);
+        balanceNode.LastChangeTimestamp = timestamp;
 
         Nodes.Add(balanceNode.Address, balanceNode);
         BalanceNodes.Add(balanceNode.Address, balanceNode);

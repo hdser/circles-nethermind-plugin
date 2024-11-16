@@ -9,14 +9,18 @@ public static class Demurrage
 {
     private const decimal Gamma = 0.9998013320085989574306481700129226782902039065082930593676448873m;
     private const long DemurrageWindow = 86400; // 1 day in seconds
+    public const long InflationDayZero = 1675209600;
 
-    public static decimal ApplyDemurrage(long inflationDayZero, long timestamp, decimal value)
+    public static BigInteger ApplyDemurrage(long inflationDayZero, long timestamp, BigInteger value)
     {
+        var attoCircles = ConversionUtils.AttoCirclesToCircles((UInt256)value);
+
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         long dayLastInteraction = CrcDay(inflationDayZero, timestamp);
         long dayNow = CrcDay(inflationDayZero, now);
 
-        return value * (decimal)Math.Pow((double)Gamma, dayNow - dayLastInteraction);
+        var demurragedCircles = attoCircles * (decimal)Math.Pow((double)Gamma, dayNow - dayLastInteraction);
+        return (BigInteger)ConversionUtils.CirclesToAttoCircles(demurragedCircles);
     }
 
     private static long CrcDay(long inflationDayZero, long timestamp)

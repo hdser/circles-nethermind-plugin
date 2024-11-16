@@ -42,7 +42,7 @@ public class GraphFactory
         var graph = new BalanceGraph();
         foreach (var balance in balances)
         {
-            graph.SetBalance(balance.Account, balance.TokenAddress, BigInteger.Parse(balance.Balance));
+            graph.SetBalance(balance.Account, balance.TokenAddress, BigInteger.Parse(balance.Balance), 0);
         }
 
         return graph;

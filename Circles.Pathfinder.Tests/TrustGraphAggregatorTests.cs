@@ -52,22 +52,22 @@ public class TrustGraphAggregatorTests
         {
             balanceGraphAggregator.ProcessEvent(transferEvent);
         }
-        
+
         var loadGraph = new LoadGraph(ConnectionString);
         var graphFactory = new GraphFactory();
         var balanceGraph = graphFactory.V2BalanceGraph(loadGraph);
-        
+
         var aggregatorState = balanceGraphAggregator.GetState();
-        
+
         Assert.That(aggregatorState.Edges.Count, Is.EqualTo(balanceGraph.Edges.Count));
         Assert.That(aggregatorState.Nodes.Count, Is.EqualTo(balanceGraph.Nodes.Count));
-        
-        // Check that the balances are the same
+
+        // Check that the balances are theer run same
         foreach (var node in aggregatorState.BalanceNodes)
         {
             var balanceNode = node.Value;
             var balance = balanceGraph.GetBalance(balanceNode.HolderAddress, balanceNode.Token);
-            Assert.That(balanceNode.Amount, Is.EqualTo(balance));
+            Assert.That(balanceNode.DemurragedAmount, Is.EqualTo(balance));
         }
     }
 
