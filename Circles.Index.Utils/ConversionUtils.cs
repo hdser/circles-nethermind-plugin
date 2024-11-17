@@ -13,14 +13,15 @@ public static class Demurrage
 
     public static BigInteger ApplyDemurrage(long inflationDayZero, long timestamp, BigInteger value)
     {
-        var attoCircles = ConversionUtils.AttoCirclesToCircles((UInt256)value);
+        BigRational _value = value;
+        // var attoCircles = ConversionUtils.AttoCirclesToCircles((UInt256)value);
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         long dayLastInteraction = CrcDay(inflationDayZero, timestamp);
         long dayNow = CrcDay(inflationDayZero, now);
 
-        var demurragedCircles = attoCircles * (decimal)Math.Pow((double)Gamma, dayNow - dayLastInteraction);
-        return (BigInteger)ConversionUtils.CirclesToAttoCircles(demurragedCircles);
+        var demurragedCircles = _value * BigRational.Pow(Gamma, dayNow - dayLastInteraction);
+        return (BigInteger)demurragedCircles;
     }
 
     private static long CrcDay(long inflationDayZero, long timestamp)
