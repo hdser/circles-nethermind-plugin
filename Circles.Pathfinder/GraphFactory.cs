@@ -18,15 +18,15 @@ public class GraphFactory
         {
             if (!graph.AvatarNodes.ContainsKey(trustEdge.Truster))
             {
-                graph.AddAvatar(trustEdge.Truster);
+                graph = graph.AddAvatar(trustEdge.Truster).Item1;
             }
 
             if (!graph.AvatarNodes.ContainsKey(trustEdge.Trustee))
             {
-                graph.AddAvatar(trustEdge.Trustee);
+                graph = graph.AddAvatar(trustEdge.Trustee).Item1;
             }
 
-            graph.AddTrustEdge(trustEdge.Truster, trustEdge.Trustee, trustEdge.ExpiryTime);
+            graph = graph.AddTrustEdge(trustEdge.Truster, trustEdge.Trustee, trustEdge.ExpiryTime);
         }
 
         return graph;
@@ -42,7 +42,7 @@ public class GraphFactory
         var graph = new BalanceGraph();
         foreach (var balance in balances)
         {
-            graph.SetBalance(balance.Account, balance.TokenAddress, BigInteger.Parse(balance.Balance), 0);
+            graph = graph.SetBalance(balance.Account, balance.TokenAddress, BigInteger.Parse(balance.Balance), 0);
         }
 
         return graph;
@@ -68,24 +68,24 @@ public class GraphFactory
         // Step 1: Create a unified list of nodes from both graphs
         foreach (var avatar in balanceGraph.AvatarNodes.Values)
         {
-            capacityGraph.AddAvatar(avatar.Address);
+            capacityGraph = capacityGraph.AddAvatar(avatar.Address);
         }
 
         foreach (var avatar in trustGraph.AvatarNodes.Values)
         {
-            capacityGraph.AddAvatar(avatar.Address);
+            capacityGraph = capacityGraph.AddAvatar(avatar.Address);
         }
 
         // Add BalanceNodes
         foreach (var balanceNode in balanceGraph.BalanceNodes.Values)
         {
-            capacityGraph.AddBalanceNode(balanceNode.Address, balanceNode.Token, balanceNode.Amount);
+            capacityGraph = capacityGraph.AddBalanceNode(balanceNode.Address, balanceNode.Token, balanceNode.Amount);
         }
 
         // Step 2: Leave the capacity edges from the balance graph in place
         foreach (var capacityEdge in balanceGraph.Edges)
         {
-            capacityGraph.AddCapacityEdge(
+            capacityGraph = capacityGraph.AddCapacityEdge(
                 capacityEdge.From,
                 capacityEdge.To,
                 capacityEdge.Token,
@@ -120,7 +120,7 @@ public class GraphFactory
                     if (acceptingNode == balanceNode.HolderAddress)
                         continue;
 
-                    capacityGraph.AddCapacityEdge(
+                    capacityGraph = capacityGraph.AddCapacityEdge(
                         balanceNode.Address,
                         acceptingNode,
                         balanceNode.Token,
@@ -135,9 +135,6 @@ public class GraphFactory
 
     public FlowGraph CreateFlowGraph(CapacityGraph capacityGraph)
     {
-        var flowGraph = new FlowGraph();
-        flowGraph.AddCapacity(capacityGraph);
-
-        return flowGraph;
+        return new FlowGraph().AddCapacity(capacityGraph);
     }
 }

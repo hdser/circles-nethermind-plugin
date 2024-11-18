@@ -49,7 +49,7 @@ public class TrustGraphAggregatorTests
     [Test]
     public void LoadBalanceGraphFromIndividualEvents()
     {
-        var transferEvents = new LoadGraph(ConnectionString).LoadV2Transfers();
+        var transferEvents = new LoadGraph(ConnectionString).LoadV2Transfers().ToArray();
         foreach (var transferEvent in transferEvents)
         {
             _balanceGraphAggregator.ProcessEvent(transferEvent);
@@ -60,6 +60,9 @@ public class TrustGraphAggregatorTests
         var balanceGraph = graphFactory.V2BalanceGraph(loadGraph);
 
         var aggregatorState = _balanceGraphAggregator.GetState();
+        
+        // There must be exactly one edge per balance node
+        Assert.That(balanceGraph.Edges.Count, Is.EqualTo(balanceGraph.BalanceNodes.Count));
 
         Assert.That(aggregatorState.Edges.Count, Is.EqualTo(balanceGraph.Edges.Count));
         Assert.That(aggregatorState.Nodes.Count, Is.EqualTo(balanceGraph.Nodes.Count));

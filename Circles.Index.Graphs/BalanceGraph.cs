@@ -1,50 +1,49 @@
 using System.Numerics;
+using System.Collections.Immutable;
 
 namespace Circles.Index.Graphs;
 
-public class BalanceGraph : IGraph<CapacityEdge>
+public record BalanceGraph(
+    ImmutableDictionary<string, Node> Nodes,
+    ImmutableHashSet<CapacityEdge> Edges,
+    ImmutableDictionary<string, BalanceNode> BalanceNodes,
+    ImmutableDictionary<string, AvatarNode> AvatarNodes)
+    : IGraph<CapacityEdge>
 {
-    public IDictionary<string, Node> Nodes { get; } = new Dictionary<string, Node>();
-    public HashSet<CapacityEdge> Edges { get; } = new();
-    public IDictionary<string, BalanceNode> BalanceNodes { get; } = new Dictionary<string, BalanceNode>();
-    public IDictionary<string, AvatarNode> AvatarNodes { get; } = new Dictionary<string, AvatarNode>();
-
-    public void AddAvatar(string avatarAddress)
+    public BalanceGraph()
+        : this(
+            ImmutableDictionary<string, Node>.Empty,
+            ImmutableHashSet<CapacityEdge>.Empty,
+            ImmutableDictionary<string, BalanceNode>.Empty,
+            ImmutableDictionary<string, AvatarNode>.Empty)
     {
-        Nodes.Add(avatarAddress, new AvatarNode(avatarAddress));
     }
 
-    /// <summary>
-    /// Removes a node from the graph if it exists.
-    /// </summary>
-    /// <param name="key">The node's key</param>
-    /// <returns>If the node existed and was removed.</returns>
-    private bool TryRemoveNode(string key)
+    public BalanceGraph AddAvatar(string avatarAddress)
     {
-        // 1. Check if the node exists
+        var avatarNode = new AvatarNode(avatarAddress);
+        var newAvatarNodes = AvatarNodes.SetItem(avatarAddress, avatarNode);
+        var newNodes = Nodes.SetItem(avatarAddress, avatarNode);
+
+        return this with { AvatarNodes = newAvatarNodes, Nodes = newNodes };
+    }
+
+    private BalanceGraph RemoveNode(string key)
+    {
         if (!Nodes.TryGetValue(key, out var node))
         {
-            return false;
+            return this;
         }
 
-        // 2. Remove all edges connected to the node
-        foreach (var edge in node.OutEdges.Cast<CapacityEdge>())
-        {
-            Edges.Remove(edge);
-            Nodes[edge.To].InEdges.Remove(edge);
-        }
+        // Remove all edges connected to the node
+        var edgesToRemove = node.OutEdges.Concat(node.InEdges).ToImmutableHashSet();
+        var newEdges = Edges.Except(edgesToRemove.OfType<CapacityEdge>()).ToImmutableHashSet();
 
-        foreach (var edge in node.InEdges.Cast<CapacityEdge>())
-        {
-            Edges.Remove(edge);
-            Nodes[edge.From].OutEdges.Remove(edge);
-        }
+        var newNodes = Nodes.Remove(key);
+        var newBalanceNodes = BalanceNodes.Remove(key);
+        var newAvatarNodes = AvatarNodes.Remove(key);
 
-        // 3. Remove the node
-        BalanceNodes.Remove(key);
-        AvatarNodes.Remove(key);
-
-        return Nodes.Remove(key);
+        return new BalanceGraph(newNodes, newEdges, newBalanceNodes, newAvatarNodes);
     }
 
     public BigInteger GetBalance(string address, string token)
@@ -61,41 +60,167 @@ public class BalanceGraph : IGraph<CapacityEdge>
             : BigInteger.Zero;
     }
 
-    public void SetBalance(string address, string token, BigInteger balance, long timestamp)
+    public BalanceGraph SetBalance(string address, string token, BigInteger balance, long timestamp)
     {
+        var graph = this;
+        var balanceNodeKey = address + "-" + token;
+
         if (balance == BigInteger.Zero)
         {
-            TryRemoveNode(address + "-" + token);
-
-            if (AvatarNodes.TryGetValue(address, out var potentiallyDanglingAvatarNode)
-                && !potentiallyDanglingAvatarNode.OutEdges.Any())
-            {
-                TryRemoveNode(address);
-            }
-
-            return;
+            return SetBalanceToZero(address, token, graph, balanceNodeKey);
         }
 
-        if (!AvatarNodes.TryGetValue(address, out var avatarNode))
+        return SetNewBalance(address, token, balance, timestamp, graph, balanceNodeKey);
+    }
+
+    private static BalanceGraph SetNewBalance(string address, string token, BigInteger balance, long timestamp,
+        BalanceGraph graph, string balanceNodeKey)
+    {
+        // Ensure the avatar node exists
+        if (!graph.AvatarNodes.TryGetValue(address, out var avatarNode))
         {
-            avatarNode = new AvatarNode(address);
-
-            AvatarNodes.Add(address, avatarNode);
-            Nodes.Add(address, avatarNode);
+            graph = graph.AddAvatar(address);
+            avatarNode = graph.AvatarNodes[address];
         }
 
-        TryRemoveNode(address + "-" + token);
+        // Try to get the existing balance node
+        BalanceNode balanceNode;
+        if (graph.BalanceNodes.TryGetValue(balanceNodeKey, out var existingBalanceNode))
+        {
+            // Update the amount and timestamp
+            balanceNode = existingBalanceNode with { Amount = balance, LastChangeTimestamp = timestamp };
+        }
+        else
+        {
+            // Create a new balance node
+            balanceNode = new BalanceNode(balanceNodeKey, token, balance, timestamp);
+        }
 
-        var balanceNode = new BalanceNode(address, token, balance);
-        balanceNode.LastChangeTimestamp = timestamp;
+        // Try to find the existing edge from the avatar to the balance node
+        var existingEdge = avatarNode.OutEdges.OfType<CapacityEdge>()
+            .FirstOrDefault(e => e.To == balanceNodeKey && e.Token == token);
 
-        Nodes.Add(balanceNode.Address, balanceNode);
-        BalanceNodes.Add(balanceNode.Address, balanceNode);
+        // Create the capacity edge
+        var capacityEdge = new CapacityEdge(address, balanceNode.Address, token, balance);
 
-        var capacityEdge = new CapacityEdge(avatarNode.Address, balanceNode.Address, token, balance);
+        // Update the edge collections
+        var newEdges = graph.Edges;
 
-        AvatarNodes[address].OutEdges.Add(capacityEdge);
-        BalanceNodes[balanceNode.Address].InEdges.Add(capacityEdge);
-        Edges.Add(capacityEdge);
+        if (existingEdge != null)
+        {
+            newEdges = newEdges.Remove(existingEdge).Add(capacityEdge);
+        }
+        else
+        {
+            newEdges = newEdges.Add(capacityEdge);
+        }
+
+        // Update the avatar node's OutEdges
+        var updatedAvatarOutEdges = avatarNode.OutEdges;
+        if (existingEdge != null)
+        {
+            updatedAvatarOutEdges = updatedAvatarOutEdges.Remove(existingEdge).Add(capacityEdge);
+        }
+        else
+        {
+            updatedAvatarOutEdges = updatedAvatarOutEdges.Add(capacityEdge);
+        }
+
+        var updatedAvatarNode = avatarNode with { OutEdges = updatedAvatarOutEdges };
+
+        // Update the balance node's InEdges
+        var existingInEdge = balanceNode.InEdges.OfType<CapacityEdge>()
+            .FirstOrDefault(e => e.From == address && e.Token == token);
+
+        var updatedBalanceInEdges = balanceNode.InEdges;
+        if (existingInEdge != null)
+        {
+            updatedBalanceInEdges = updatedBalanceInEdges.Remove(existingInEdge).Add(capacityEdge);
+        }
+        else
+        {
+            updatedBalanceInEdges = updatedBalanceInEdges.Add(capacityEdge);
+        }
+
+        var updatedBalanceNode = balanceNode with { InEdges = updatedBalanceInEdges };
+
+        // Update Nodes
+        var newNodes = graph.Nodes
+            .SetItem(avatarNode.Address, updatedAvatarNode)
+            .SetItem(balanceNode.Address, updatedBalanceNode);
+
+        var newAvatarNodes = graph.AvatarNodes.SetItem(avatarNode.Address, updatedAvatarNode);
+        var newBalanceNodes = graph.BalanceNodes.SetItem(balanceNode.Address, updatedBalanceNode);
+
+        // Return the new graph
+        return graph with
+        {
+            Edges = newEdges, Nodes = newNodes, AvatarNodes = newAvatarNodes, BalanceNodes = newBalanceNodes
+        };
+    }
+
+    private static BalanceGraph SetBalanceToZero(string address, string token, BalanceGraph graph,
+        string balanceNodeKey)
+    {
+        // Remove the balance node and associated edges
+        if (!graph.BalanceNodes.TryGetValue(balanceNodeKey, out var existingBalanceNode))
+        {
+            // Balance node doesn't exist; nothing to remove
+            return graph;
+        }
+
+        // Remove the edge from the avatar node to the balance node
+        if (!graph.AvatarNodes.TryGetValue(address, out var avatarNode))
+        {
+            // Avatar node doesn't exist; nothing to remove
+            return graph;
+        }
+
+        var existingEdge = avatarNode.OutEdges.OfType<CapacityEdge>()
+            .FirstOrDefault(e => e.To == balanceNodeKey && e.Token == token);
+
+        var newEdges = graph.Edges;
+        var updatedAvatarOutEdges = avatarNode.OutEdges;
+        var updatedBalanceInEdges = existingBalanceNode.InEdges;
+
+        if (existingEdge != null)
+        {
+            newEdges = newEdges.Remove(existingEdge);
+            updatedAvatarOutEdges = updatedAvatarOutEdges.Remove(existingEdge);
+            updatedBalanceInEdges = updatedBalanceInEdges.Remove(existingEdge);
+        }
+
+        var updatedAvatarNode = avatarNode with { OutEdges = updatedAvatarOutEdges };
+        var updatedBalanceNode = existingBalanceNode with { InEdges = updatedBalanceInEdges };
+
+        // Update Nodes, AvatarNodes, BalanceNodes
+        var newNodes = graph.Nodes.SetItem(avatarNode.Address, updatedAvatarNode);
+        var newAvatarNodes = graph.AvatarNodes.SetItem(avatarNode.Address, updatedAvatarNode);
+        var newBalanceNodes = graph.BalanceNodes;
+
+        // If the balance node has no edges, remove it
+        if (!updatedBalanceNode.InEdges.Any() && !updatedBalanceNode.OutEdges.Any())
+        {
+            newNodes = newNodes.Remove(balanceNodeKey);
+            newBalanceNodes = newBalanceNodes.Remove(balanceNodeKey);
+        }
+        else
+        {
+            newNodes = newNodes.SetItem(balanceNodeKey, updatedBalanceNode);
+            newBalanceNodes = newBalanceNodes.SetItem(balanceNodeKey, updatedBalanceNode);
+        }
+
+        // If the avatar node has no edges, we may also remove it
+        if (!updatedAvatarNode.InEdges.Any() && !updatedAvatarNode.OutEdges.Any())
+        {
+            newNodes = newNodes.Remove(address);
+            newAvatarNodes = newAvatarNodes.Remove(address);
+        }
+
+        // Return the new graph
+        return graph with
+        {
+            Edges = newEdges, Nodes = newNodes, AvatarNodes = newAvatarNodes, BalanceNodes = newBalanceNodes
+        };
     }
 }

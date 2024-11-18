@@ -362,7 +362,7 @@ public class CirclesRpcModule : ICirclesRpcModule
     {
         var loadGraph = new LoadGraph(_indexerContext.Settings.IndexDbConnectionString);
         var graphFactory = new GraphFactory();
-        var pathfinder = new V2Pathfinder(loadGraph, graphFactory);
+        var pathfinder = new V2Pathfinder(_indexerContext, loadGraph, graphFactory);
         return ResultWrapper<MaxFlowResponse>.Success(await pathfinder.ComputeMaxFlow(flowRequest));
     }
 

@@ -13,6 +13,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Circles.Index.CirclesV2\Circles.Index.CirclesV2.csproj" />
+      <ProjectReference Include="..\Circles.Index.EventSourcing\Circles.Index.EventSourcing.csproj" />
       <ProjectReference Include="..\Circles.Index.Graphs\Circles.Index.Graphs.csproj" />
     </ItemGroup>
 

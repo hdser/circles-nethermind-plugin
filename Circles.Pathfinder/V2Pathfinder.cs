@@ -1,11 +1,13 @@
 using System.Numerics;
+using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Index.Graphs;
 using Circles.Pathfinder.Data;
 using Circles.Pathfinder.DTOs;
 
 namespace Circles.Pathfinder;
 
-public class V2Pathfinder(LoadGraph loadGraph, GraphFactory graphFactory) : IPathfinder
+public class V2Pathfinder(Context<Aggregates> context, LoadGraph loadGraph, GraphFactory graphFactory) : IPathfinder
 {
     public async Task<MaxFlowResponse> ComputeMaxFlow(FlowRequest request)
     {
@@ -20,8 +22,11 @@ public class V2Pathfinder(LoadGraph loadGraph, GraphFactory graphFactory) : IPat
         }
 
         // Load Trust and Balance Graphs
-        var trustGraph = graphFactory.V2TrustGraph(loadGraph);
-        var balanceGraph = graphFactory.V2BalanceGraph(loadGraph);
+        // var trustGraph = graphFactory.V2TrustGraph(loadGraph);
+        var trustGraph = context.Aggregates.TrustGraph.GetState();
+
+        // var balanceGraph = graphFactory.V2BalanceGraph(loadGraph);
+        var balanceGraph = context.Aggregates.BalanceGraph.GetState();
 
         // Create Capacity Graph
         var capacityGraph = graphFactory.CreateCapacityGraph(balanceGraph, trustGraph);
@@ -100,7 +105,7 @@ public class V2Pathfinder(LoadGraph loadGraph, GraphFactory graphFactory) : IPat
                 avatars.Add(p.To);
             }
         }));
-        
+
         foreach (var avatar in avatars)
         {
             collapsedGraph.AddAvatar(avatar);

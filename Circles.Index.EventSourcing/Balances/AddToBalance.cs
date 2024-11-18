@@ -9,9 +9,9 @@ public class AddToBalance(string accountAddress, string tokenAddress, BigInteger
     public BalanceGraph Apply(BalanceGraph state)
     {
         var currentBalance = state.GetBalance(accountAddress, tokenAddress);
-        state.SetBalance(accountAddress, tokenAddress, currentBalance + value, timestamp);
+        var newState = state.SetBalance(accountAddress, tokenAddress, currentBalance + value, timestamp);
 
-        return state;
+        return newState;
     }
 
     public IEventAction<BalanceGraph> GetInverseAction()

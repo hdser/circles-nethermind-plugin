@@ -11,6 +11,7 @@ namespace Circles.Index.EventSourcing;
 /// <typeparam name="TEvent">The type of the events that are processed.</typeparam>
 public class Aggregator<TEvent, TState> : IAggregator<TEvent, TState>
     where TEvent : IIndexEvent
+    where TState : class
 {
     /// <summary>
     /// The aggregate state.
@@ -26,11 +27,6 @@ public class Aggregator<TEvent, TState> : IAggregator<TEvent, TState>
     /// Function that maps an event to an action that can be applied to the state.
     /// </summary>
     private readonly Func<TEvent, TState, IEnumerable<IEventAction<TState>>> _mapEventToActions;
-
-    /// <summary>
-    /// Lock that allows multiple readers or a single writer.
-    /// </summary>
-    private readonly ReaderWriterLockSlim _lock = new();
 
     /// <summary>
     /// Creates a new Aggregator.
@@ -52,15 +48,7 @@ public class Aggregator<TEvent, TState> : IAggregator<TEvent, TState>
     /// <returns>The current aggregate state.</returns>
     public TState GetState()
     {
-        _lock.EnterReadLock();
-        try
-        {
-            return _state;
-        }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+        return _state;
     }
 
     /// <summary>
@@ -72,22 +60,18 @@ public class Aggregator<TEvent, TState> : IAggregator<TEvent, TState>
     {
         var actions = _mapEventToActions(indexEvent, _state).ToArray();
 
-        _lock.EnterWriteLock();
-        try
-        {
-            foreach (var action in actions)
-            {
-                _state = action.Apply(_state);
-            }
+        TState newState = _state;
 
-            _blockEventLog.AddEvent(indexEvent, actions);
-
-            return _state;
-        }
-        finally
+        foreach (var action in actions)
         {
-            _lock.ExitWriteLock();
+            newState = action.Apply(newState);
         }
+
+        _blockEventLog.AddEvent(indexEvent, actions);
+
+        Interlocked.Exchange(ref _state, newState);
+
+        return newState;
     }
 
     /// <summary>
@@ -98,28 +82,24 @@ public class Aggregator<TEvent, TState> : IAggregator<TEvent, TState>
     /// <param name="_">Timestamp not used</param>
     public TState RevertToBlock(long blockNumber, long _)
     {
-        _lock.EnterWriteLock();
-        try
-        {
-            var eventsToRevert =
-                _blockEventLog
-                    .GetEventsSince(blockNumber)
-                    .Reverse();
+        var eventsToRevert =
+            _blockEventLog
+                .GetEventsSince(blockNumber)
+                .Reverse();
 
-            foreach (var eventToRevert in eventsToRevert)
+        TState newState = _state;
+
+        foreach (var eventToRevert in eventsToRevert)
+        {
+            foreach (var actionToRevert in eventToRevert.Actions)
             {
-                foreach (var actionToRevert in eventToRevert.Actions)
-                {
-                    var inverseAction = actionToRevert.GetInverseAction();
-                    _state = inverseAction.Apply(_state);
-                }
+                var inverseAction = actionToRevert.GetInverseAction();
+                newState = inverseAction.Apply(newState);
             }
+        }
 
-            return _state;
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
-        }
+        Interlocked.Exchange(ref _state, newState);
+
+        return newState;
     }
 }

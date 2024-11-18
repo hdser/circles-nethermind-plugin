@@ -1,73 +1,91 @@
+using System.Collections.Immutable;
 using Nethermind.Int256;
 
 namespace Circles.Index.Graphs;
 
-public class TrustGraph : IGraph<TrustEdge>
+public record TrustGraph(
+    ImmutableDictionary<string, Node> Nodes,
+    ImmutableDictionary<string, AvatarNode> AvatarNodes,
+    ImmutableHashSet<TrustEdge> Edges)
+    : IGraph<TrustEdge>
 {
-    public IDictionary<string, Node> Nodes { get; } = new Dictionary<string, Node>();
-    public IDictionary<string, AvatarNode> AvatarNodes { get; } = new Dictionary<string, AvatarNode>();
-    public HashSet<TrustEdge> Edges { get; } = new();
-
-    public AvatarNode AddAvatar(string avatarAddress)
+    public TrustGraph()
+        : this(
+            ImmutableDictionary<string, Node>.Empty,
+            ImmutableDictionary<string, AvatarNode>.Empty,
+            ImmutableHashSet<TrustEdge>.Empty)
     {
-        var avatar = new AvatarNode(avatarAddress);
-        AvatarNodes.Add(avatarAddress, avatar);
-        Nodes.Add(avatarAddress, avatar);
-
-        return avatar;
     }
 
-    public void RemoveAvatar(string avatarAddress)
+    public (TrustGraph, AvatarNode) AddAvatar(string avatarAddress)
+    {
+        var avatar = new AvatarNode(avatarAddress);
+        var newAvatarNodes = AvatarNodes.SetItem(avatarAddress, avatar);
+        var newNodes = Nodes.SetItem(avatarAddress, avatar);
+
+        var newGraph = this with { AvatarNodes = newAvatarNodes, Nodes = newNodes };
+
+        return (newGraph, avatar);
+    }
+
+    public TrustGraph RemoveAvatar(string avatarAddress)
     {
         if (!AvatarNodes.TryGetValue(avatarAddress, out var avatarNode))
         {
             throw new Exception("Avatar not found in graph.");
         }
 
-        foreach (var edge in avatarNode.InEdges.Cast<TrustEdge>())
-        {
-            Edges.Remove(edge);
-            AvatarNodes[edge.From].OutEdges.Remove(edge);
-        }
+        // Remove edges
+        var edgesToRemove = avatarNode.InEdges.Concat(avatarNode.OutEdges).ToImmutableHashSet();
 
-        foreach (var edge in avatarNode.OutEdges.Cast<TrustEdge>())
-        {
-            Edges.Remove(edge);
-            AvatarNodes[edge.To].InEdges.Remove(edge);
-        }
+        var newEdges = Edges.Except(edgesToRemove.OfType<TrustEdge>()).ToImmutableHashSet();
 
-        AvatarNodes.Remove(avatarAddress);
-        Nodes.Remove(avatarAddress);
+        var newNodes = Nodes.Remove(avatarAddress);
+        var newAvatarNodes = AvatarNodes.Remove(avatarAddress);
+
+        return this with { Nodes = newNodes, AvatarNodes = newAvatarNodes, Edges = newEdges };
     }
 
-    public void AddTrustEdge(string truster, string trustee, UInt256 expiryTime)
+    public TrustGraph AddTrustEdge(string truster, string trustee, UInt256 expiryTime)
     {
         truster = truster.ToLower();
         trustee = trustee.ToLower();
 
-        if (!AvatarNodes.TryGetValue(truster, out var trusterNode))
+        var graph = this;
+
+        if (!AvatarNodes.ContainsKey(truster))
         {
-            trusterNode = new AvatarNode(truster);
-            AvatarNodes[truster] = trusterNode;
+            (graph, _) = graph.AddAvatar(truster);
         }
 
-        if (!AvatarNodes.TryGetValue(trustee, out var trusteeNode))
+        if (!AvatarNodes.ContainsKey(trustee))
         {
-            trusteeNode = new AvatarNode(trustee);
-            AvatarNodes[trustee] = trusteeNode;
+            (graph, _) = graph.AddAvatar(trustee);
         }
 
         var trustEdge = new TrustEdge(truster, trustee, expiryTime);
-        if (!trusterNode.OutEdges.Contains(trustEdge))
+
+        if (graph.Edges.Contains(trustEdge))
         {
-            trusterNode.OutEdges.Add(trustEdge);
+            return graph;
         }
 
-        if (!trusteeNode.InEdges.Contains(trustEdge))
-        {
-            trusteeNode.InEdges.Add(trustEdge);
-        }
+        var newEdges = graph.Edges.Add(trustEdge);
 
-        Edges.Add(trustEdge);
+        var trusterNode = graph.AvatarNodes[truster];
+        var trusteeNode = graph.AvatarNodes[trustee];
+
+        var updatedTrusterNode = trusterNode with { OutEdges = trusterNode.OutEdges.Add(trustEdge) };
+        var updatedTrusteeNode = trusteeNode with { InEdges = trusteeNode.InEdges.Add(trustEdge) };
+
+        var newAvatarNodes = graph.AvatarNodes
+            .SetItem(truster, updatedTrusterNode)
+            .SetItem(trustee, updatedTrusteeNode);
+
+        var newNodes = graph.Nodes
+            .SetItem(truster, updatedTrusterNode)
+            .SetItem(trustee, updatedTrusteeNode);
+
+        return graph with { Edges = newEdges, AvatarNodes = newAvatarNodes, Nodes = newNodes };
     }
 }

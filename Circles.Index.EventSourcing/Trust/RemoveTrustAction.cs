@@ -9,51 +9,62 @@ public class RemoveTrustAction(string from, string to, UInt256 expiryTime) : IEv
 
     public TrustGraph Apply(TrustGraph state)
     {
-        if (!state.Nodes.TryGetValue(from, out var fromNode))
+        var graph = state;
+
+        if (!graph.Nodes.TryGetValue(from, out var fromNode))
         {
             throw new InvalidOperationException(
-                $"RemoveTrustAction: Edge {from} -> {to} (expiry: ${expiryTime}). From node not found in graph.");
+                $"RemoveTrustAction: Edge {from} -> {to} (expiry: {expiryTime}). From node not found in graph.");
         }
 
-        if (!state.Nodes.TryGetValue(to, out var toNode))
+        if (!graph.Nodes.TryGetValue(to, out var toNode))
         {
             throw new InvalidOperationException(
-                $"RemoveTrustAction: Edge {from} -> {to} (expiry: ${expiryTime}). To node not found in graph.");
+                $"RemoveTrustAction: Edge {from} -> {to} (expiry: {expiryTime}). To node not found in graph.");
         }
 
-        if (!fromNode.OutEdges.Remove(_edge))
+        if (!fromNode.OutEdges.Contains(_edge))
         {
             throw new InvalidOperationException(
-                $"RemoveTrustAction: Edge {from} -> {to} (expiry: ${expiryTime}). From node doesn't have this out-edge.");
+                $"RemoveTrustAction: Edge {from} -> {to} (expiry: {expiryTime}). From node doesn't have this out-edge.");
         }
 
-        if (!toNode.InEdges.Remove(_edge))
+        if (!toNode.InEdges.Contains(_edge))
         {
             throw new InvalidOperationException(
-                $"RemoveTrustAction: Edge {from} -> {to} (expiry: ${expiryTime}). To node doesn't have this in-edge.");
+                $"RemoveTrustAction: Edge {from} -> {to} (expiry: {expiryTime}). To node doesn't have this in-edge.");
         }
 
-        if (!state.Edges.Remove(_edge))
-        {
-            throw new InvalidOperationException(
-                $"RemoveTrustAction: Edge {from} -> {to} (expiry: ${expiryTime}) not found in graph.");
-        }
+        var newEdges = graph.Edges.Remove(_edge);
+
+        var updatedFromNode = fromNode with { OutEdges = fromNode.OutEdges.Remove(_edge) };
+        var updatedToNode = toNode with { InEdges = toNode.InEdges.Remove(_edge) };
+
+        var newNodes = graph.Nodes
+            .SetItem(from, updatedFromNode)
+            .SetItem(to, updatedToNode);
+
+        var newAvatarNodes = graph.AvatarNodes
+            .SetItem(from, (AvatarNode)updatedFromNode)
+            .SetItem(to, (AvatarNode)updatedToNode);
+
+        graph = new TrustGraph(newNodes, newAvatarNodes, newEdges);
 
         // If a node is not connected anymore, remove it from the graph.
-        if (!fromNode.InEdges.Any() && !fromNode.OutEdges.Any())
+        if (!updatedFromNode.InEdges.Any() && !updatedFromNode.OutEdges.Any())
         {
-            state.RemoveAvatar(from);
+            graph = graph.RemoveAvatar(from);
         }
 
-        if (!toNode.InEdges.Any() && !toNode.OutEdges.Any())
+        if (!updatedToNode.InEdges.Any() && !updatedToNode.OutEdges.Any())
         {
-            state.RemoveAvatar(to);
+            graph = graph.RemoveAvatar(to);
         }
 
-        return state;
+        return graph;
     }
 
-    public IEventAction<Graphs.TrustGraph> GetInverseAction()
+    public IEventAction<TrustGraph> GetInverseAction()
     {
         return new AddTrustAction(from, to, expiryTime);
     }

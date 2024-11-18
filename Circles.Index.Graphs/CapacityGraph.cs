@@ -1,61 +1,104 @@
 using System.Numerics;
+using System.Collections.Immutable;
 
 namespace Circles.Index.Graphs;
 
-public class CapacityGraph : IGraph<CapacityEdge>
+public record CapacityGraph(
+    ImmutableDictionary<string, Node> Nodes,
+    ImmutableDictionary<string, AvatarNode> AvatarNodes,
+    ImmutableDictionary<string, BalanceNode> BalanceNodes,
+    ImmutableHashSet<CapacityEdge> Edges)
+    : IGraph<CapacityEdge>
 {
-    public IDictionary<string, Node> Nodes { get; } = new Dictionary<string, Node>();
-    public IDictionary<string, AvatarNode> AvatarNodes { get; } = new Dictionary<string, AvatarNode>();
-    public IDictionary<string, BalanceNode> BalanceNodes { get; } = new Dictionary<string, BalanceNode>();
-    public HashSet<CapacityEdge> Edges { get; } = new();
+    public CapacityGraph()
+        : this(
+            ImmutableDictionary<string, Node>.Empty,
+            ImmutableDictionary<string, AvatarNode>.Empty,
+            ImmutableDictionary<string, BalanceNode>.Empty,
+            ImmutableHashSet<CapacityEdge>.Empty)
+    {
+    }
 
-    public void AddAvatar(string avatarAddress)
+    public CapacityGraph AddAvatar(string avatarAddress)
     {
         avatarAddress = avatarAddress.ToLower();
         if (!AvatarNodes.ContainsKey(avatarAddress))
         {
-            AvatarNodes.Add(avatarAddress, new AvatarNode(avatarAddress));
-            Nodes.Add(avatarAddress, AvatarNodes[avatarAddress]);
+            var avatarNode = new AvatarNode(avatarAddress);
+            var newAvatarNodes = AvatarNodes.SetItem(avatarAddress, avatarNode);
+            var newNodes = Nodes.SetItem(avatarAddress, avatarNode);
+
+            return this with { AvatarNodes = newAvatarNodes, Nodes = newNodes };
         }
+
+        return this;
     }
 
-    public void AddBalanceNode(string address, string token, BigInteger amount)
+    public CapacityGraph AddBalanceNode(string address, string token, BigInteger amount)
     {
         address = address.ToLower();
         token = token.ToLower();
-        
-        var balanceNode = new BalanceNode(address, token, amount);
-        balanceNode.Address = address;
-        BalanceNodes.TryAdd(balanceNode.Address, balanceNode);
-        Nodes.TryAdd(balanceNode.Address, balanceNode);
+
+        var balanceNode = new BalanceNode(address, token, amount, 0); // Assuming LastChangeTimestamp is 0
+        var newBalanceNodes = BalanceNodes.SetItem(balanceNode.Address, balanceNode);
+        var newNodes = Nodes.SetItem(balanceNode.Address, balanceNode);
+
+        return this with { BalanceNodes = newBalanceNodes, Nodes = newNodes };
     }
 
-    public void AddCapacityEdge(string from, string to, string token, BigInteger capacity)
+    public CapacityGraph AddCapacityEdge(string from, string to, string token, BigInteger capacity)
     {
         from = from.ToLower();
         to = to.ToLower();
         token = token.ToLower();
-        
+
         var edge = new CapacityEdge(from, to, token, capacity);
-        Edges.Add(edge);
+        var newEdges = Edges.Add(edge);
 
-        // Optionally, you can manage adjacency lists if needed
-        if (AvatarNodes.TryGetValue(from, out var node))
+        var graph = this;
+
+        if (!Nodes.ContainsKey(from))
         {
-            node.OutEdges.Add(edge);
-        }
-        else if (BalanceNodes.TryGetValue(from, out var balanceNode))
-        {
-            balanceNode.OutEdges.Add(edge);
+            graph = graph.AddAvatar(from);
         }
 
-        if (AvatarNodes.TryGetValue(to, out var avatarNode))
+        if (!Nodes.ContainsKey(to))
         {
-            avatarNode.InEdges.Add(edge);
+            graph = graph.AddAvatar(to);
         }
-        else if (BalanceNodes.TryGetValue(to, out var balanceNode))
+
+        var fromNode = graph.Nodes[from];
+        var toNode = graph.Nodes[to];
+
+        var updatedFromNode = fromNode with { OutEdges = fromNode.OutEdges.Add(edge) };
+        var updatedToNode = toNode with { InEdges = toNode.InEdges.Add(edge) };
+
+        var newNodes = graph.Nodes
+            .SetItem(from, updatedFromNode)
+            .SetItem(to, updatedToNode);
+
+        if (fromNode is AvatarNode)
         {
-            balanceNode.InEdges.Add(edge);
+            var newAvatarNodes = graph.AvatarNodes.SetItem(from, (AvatarNode)updatedFromNode);
+            graph = graph with { AvatarNodes = newAvatarNodes };
         }
+        else if (fromNode is BalanceNode)
+        {
+            var newBalanceNodes = graph.BalanceNodes.SetItem(from, (BalanceNode)updatedFromNode);
+            graph = graph with { BalanceNodes = newBalanceNodes };
+        }
+
+        if (toNode is AvatarNode)
+        {
+            var newAvatarNodes = graph.AvatarNodes.SetItem(to, (AvatarNode)updatedToNode);
+            graph = graph with { AvatarNodes = newAvatarNodes };
+        }
+        else if (toNode is BalanceNode)
+        {
+            var newBalanceNodes = graph.BalanceNodes.SetItem(to, (BalanceNode)updatedToNode);
+            graph = graph with { BalanceNodes = newBalanceNodes };
+        }
+
+        return graph with { Nodes = newNodes, Edges = newEdges };
     }
 }

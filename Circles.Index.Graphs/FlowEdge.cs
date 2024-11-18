@@ -8,7 +8,7 @@ namespace Circles.Index.Graphs;
 public record FlowEdge(string From, string To, string Token, BigInteger InitialCapacity)
     : CapacityEdge(From, To, Token, InitialCapacity)
 {
-    public BigInteger CurrentCapacity { get; set; } = InitialCapacity;
-    public BigInteger Flow { get; set; } = 0;
-    public FlowEdge? ReverseEdge { get; set; }
+    public BigInteger CurrentCapacity { get; init; } = InitialCapacity;
+    public BigInteger Flow { get; init; } = BigInteger.Zero;
+    public FlowEdge? ReverseEdge { get; init; }
 }

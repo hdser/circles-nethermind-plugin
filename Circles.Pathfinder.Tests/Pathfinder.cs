@@ -1,5 +1,8 @@
+using Circles.Index.Common;
+using Circles.Index.EventSourcing;
 using Circles.Pathfinder.Data;
 using Circles.Pathfinder.DTOs;
+using Moq;
 
 namespace Circles.Pathfinder.Tests;
 
@@ -14,7 +17,8 @@ public class PathfinderTests
     {
         var loadGraph = new LoadGraph(ConnectionString);
         var graphFactory = new GraphFactory();
-        var pathfinder = new V2Pathfinder(loadGraph, graphFactory);
+        var mockContext = new Mock<Context<Aggregates>>();
+        var pathfinder = new V2Pathfinder(mockContext.Object, loadGraph, graphFactory);
         var flowRequest = new FlowRequest
         {
             Source = "0x32e69894af3a7d1124baa2d9f1fcd38d9d58fe4a",

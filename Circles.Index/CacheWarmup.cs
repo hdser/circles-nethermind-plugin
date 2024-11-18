@@ -101,13 +101,14 @@ public static class CacheWarmup
         var sql = selectBlocksSinceLastTransferEvent.ToSql(context.Database);
         var result = context.Database.Select(sql);
         object?[][] rows = result.Rows.ToArray();
+        long lastBlockNumber = 0;
         
         foreach (var row in rows)
         {
             var blockNumber = (long)row[0]!;
+            lastBlockNumber = blockNumber;
+            
             var timestamp = (long)row[1]!;
-        
-            context.Logger.Info($"Replaying block {blockNumber} to balance graph aggregator...");
         
             var blockEvent = new BlockEvent(blockNumber, timestamp);
             context.Aggregates.BalanceGraph.ProcessEvent(blockEvent);
@@ -115,7 +116,7 @@ public static class CacheWarmup
         
         var balanceGraph = context.Aggregates.BalanceGraph.GetState();
         context.Logger.Info(
-            $"Initialized balance graph. Nodes: {balanceGraph.Nodes.Count}, Edges: {balanceGraph.Edges.Count}");
+            $"Initialized balance graph. Nodes: {balanceGraph.Nodes.Count}, Edges: {balanceGraph.Edges.Count} up to block {lastBlockNumber}");
     }
 
     private static void ReplayV2TrustToAggregator(Context<Aggregates> context)

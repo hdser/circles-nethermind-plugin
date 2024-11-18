@@ -1,8 +1,10 @@
+using System.Collections.Immutable;
+
 namespace Circles.Index.Graphs;
 
 public interface IGraph<TEdge>
     where TEdge : Edge
 {
-    IDictionary<string, Node> Nodes { get; }
-    HashSet<TEdge> Edges { get; }
+    ImmutableDictionary<string, Node> Nodes { get; }
+    ImmutableHashSet<TEdge> Edges { get; }
 }

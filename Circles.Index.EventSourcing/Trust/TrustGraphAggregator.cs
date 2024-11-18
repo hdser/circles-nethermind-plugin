@@ -32,12 +32,8 @@ public class TrustGraphAggregator : IAggregator<IIndexEvent, TrustGraph>
     }
 
     /// <summary>
-    /// 
+    /// Maps events to actions that update the trust graph.
     /// </summary>
-    /// <param name="event"></param>
-    /// <param name="state"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
     private IEnumerable<IEventAction<TrustGraph>> MapEventToActions(IIndexEvent @event, TrustGraph state)
     {
         if (@event.Timestamp < _currentTimestamp)
@@ -51,13 +47,10 @@ public class TrustGraphAggregator : IAggregator<IIndexEvent, TrustGraph>
         switch (@event)
         {
             case BlockEvent:
-            {
                 // Check if trust relationships have expired and clean them up if necessary.
-                var expiredTrusts =
-                    state
-                        .Edges
-                        .Where(o => o.ExpiryTime <= _currentTimestamp)
-                        .ToArray();
+                var expiredTrusts = state.Edges
+                    .Where(o => o.ExpiryTime <= _currentTimestamp)
+                    .ToArray();
 
                 foreach (var expiredTrust in expiredTrusts)
                 {
@@ -65,9 +58,8 @@ public class TrustGraphAggregator : IAggregator<IIndexEvent, TrustGraph>
                 }
 
                 break;
-            }
+
             case CirclesV2.Trust trustEvent:
-            {
                 if (trustEvent.ExpiryTime > _currentTimestamp)
                 {
                     yield return new AddTrustAction(trustEvent.Truster, trustEvent.Trustee, trustEvent.ExpiryTime);
@@ -75,12 +67,14 @@ public class TrustGraphAggregator : IAggregator<IIndexEvent, TrustGraph>
                 else if (state.Nodes.TryGetValue(trustEvent.Truster, out var truster)
                          && state.Nodes.TryGetValue(trustEvent.Trustee, out var trustee))
                 {
-                    var edgeToRemove = truster.OutEdges.Cast<TrustEdge>().First(o => o.To == trustee.Address);
-                    yield return new RemoveTrustAction(edgeToRemove.From, edgeToRemove.To, edgeToRemove.ExpiryTime);
+                    var edgeToRemove = truster.OutEdges.Cast<TrustEdge>().FirstOrDefault(o => o.To == trustee.Address);
+                    if (edgeToRemove != null)
+                    {
+                        yield return new RemoveTrustAction(edgeToRemove.From, edgeToRemove.To, edgeToRemove.ExpiryTime);
+                    }
                 }
 
                 break;
-            }
         }
     }
 }

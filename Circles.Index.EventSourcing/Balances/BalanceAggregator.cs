@@ -33,12 +33,8 @@ public class BalanceGraphAggregator : IAggregator<IIndexEvent, BalanceGraph>
     }
 
     /// <summary>
-    /// 
+    /// Maps events to actions that update the balance graph.
     /// </summary>
-    /// <param name="event"></param>
-    /// <param name="state"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
     private IEnumerable<IEventAction<BalanceGraph>> MapEventToActions(IIndexEvent @event, BalanceGraph state)
     {
         if (@event.Timestamp < _currentTimestamp)
@@ -51,34 +47,24 @@ public class BalanceGraphAggregator : IAggregator<IIndexEvent, BalanceGraph>
 
         switch (@event)
         {
-            case BlockEvent blockEvent:
-            {
+            case BlockEvent:
                 // Only used to track the time, required for the demurrage calculation.
                 break;
-            }
+
             case TransferEvent transfer:
-            {
                 if (transfer.To != "0x0000000000000000000000000000000000000000")
                 {
-                    // var currentToBalance = state.GetBalance(transfer.To, transfer.TokenAddress);
-                    // var newToBalance = currentToBalance + (BigInteger)transfer.Value;
-                    // state.SetBalance(transfer.To, transfer.TokenAddress, newToBalance, _currentTimestamp);
                     yield return new AddToBalance(transfer.To, transfer.TokenAddress, (BigInteger)transfer.Value,
                         _currentTimestamp);
                 }
 
                 if (transfer.From != "0x0000000000000000000000000000000000000000")
                 {
-                    // var currentFromBalance = state.GetBalance(transfer.From, transfer.TokenAddress);
-                    // var newFromBalance = currentFromBalance - (BigInteger)transfer.Value;
-                    // // state.SetBalance(transfer.From, transfer.TokenAddress, newFromBalance, _currentTimestamp);
-
                     yield return new SubtractFromBalance(transfer.From, transfer.TokenAddress,
                         (BigInteger)transfer.Value, _currentTimestamp);
                 }
 
                 break;
-            }
         }
     }
 }
